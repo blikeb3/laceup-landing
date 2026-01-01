@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Award, Users, Trophy, GraduationCap } from "lucide-react";
+import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -30,7 +30,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { fetchUserRoles } from "@/lib/roleUtils";
-import { BadgeType, UserBadge, ProfileInfo } from "@/types/posts";
+import { UserBadge, ProfileInfo } from "@/types/posts";
+
+interface JobExperience {
+  id?: string;
+  company: string;
+  position: string;
+  startDate: string;
+  endDate: string;
+  currentlyWorking?: boolean;
+  description?: string;
+}
 
 interface Profile {
   id: string;
@@ -48,6 +58,7 @@ interface Profile {
   sport?: string | null;
   athletic_accomplishments?: string | null;
   academic_accomplishments?: string | null;
+  job_experiences?: JobExperience[] | null;
 }
 
 interface Endorsement {
@@ -89,6 +100,17 @@ const UserProfile = () => {
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [mutualConnections, setMutualConnections] = useState<MutualConnection[]>([]);
 
+  const sortJobExperiences = (jobs: JobExperience[] = []) => {
+    return [...jobs].sort((a, b) => {
+      const endA = a.currentlyWorking ? "9999-12-31" : a.endDate || a.startDate || "";
+      const endB = b.currentlyWorking ? "9999-12-31" : b.endDate || b.startDate || "";
+      if (endA === endB) {
+        return (b.startDate || "").localeCompare(a.startDate || "");
+      }
+      return endB.localeCompare(endA);
+    });
+  };
+
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
 
@@ -127,7 +149,20 @@ const UserProfile = () => {
 
       // Sanitize profile based on privacy settings
       const sanitizedProfile = await sanitizeProfileForViewer(profileData, user.id);
-      setProfile(sanitizedProfile as Profile);
+      const rawJobs = (profileData.job_experiences as unknown) || [];
+      const parsedJobs: JobExperience[] = Array.isArray(rawJobs)
+        ? rawJobs.map((j) => ({
+            company: "",
+            position: "",
+            startDate: "",
+            endDate: "",
+            currentlyWorking: false,
+            description: "",
+            ...(j as Partial<JobExperience>),
+          }))
+        : [];
+      const sortedJobs = sortJobExperiences(parsedJobs);
+      setProfile({ ...(sanitizedProfile as Profile), job_experiences: sortedJobs });
 
       // Fetch user role
       const { baseRole, hasAdminRole } = await fetchUserRoles(userId);
@@ -533,6 +568,33 @@ const UserProfile = () => {
                 Academic Accomplishments
               </h2>
               <p className="text-foreground leading-relaxed whitespace-pre-line">{profile.academic_accomplishments}</p>
+            </Card>
+          )}
+
+          {profile.job_experiences && profile.job_experiences.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <Briefcase className="h-5 w-5 mr-2" /> Job Experience
+              </h2>
+              <div className="space-y-4">
+                {profile.job_experiences.map((job, index) => {
+                  const dateRange = `${job.startDate || "Start date not set"} - ${job.currentlyWorking ? "Present" : job.endDate || "End date not set"}`;
+                  return (
+                    <div key={`${job.id || index}`} className="border border-border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-base">{job.position || "Role not specified"}</p>
+                          <p className="text-sm text-muted-foreground">{job.company || "Company not specified"}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">{dateRange}</p>
+                      </div>
+                      {job.description && (
+                        <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{job.description}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </Card>
           )}
         </div>
