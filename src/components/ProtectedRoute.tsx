@@ -54,7 +54,6 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         if (mounted) {
           setSession(session);
           if (session?.user) {
-            setLoading(true);
             verifyApproval(session.user.id);
           } else {
             setIsApproved(null);
