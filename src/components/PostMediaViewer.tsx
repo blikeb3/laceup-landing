@@ -103,20 +103,22 @@ export const PostMediaViewer = ({
         {hasImages && (
           <div className="flex-1 min-w-0 flex flex-col relative h-[80vh]">
             {/* Image Display */}
-            <div className="flex-1 flex items-center justify-center min-w-0">
-              {currentImage?.media_type.startsWith("image") ? (
-                <img
-                  src={currentImage.url}
-                  alt={`Image ${currentIndex + 1}`}
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <video
-                  src={currentImage?.url}
-                  controls
-                  className="max-w-full max-h-full object-contain"
-                />
-              )}
+            <div className="flex-1 flex items-center justify-center min-w-0 p-4">
+              <div className="bg-black/20 border border-border rounded-lg overflow-hidden flex items-center justify-center h-fit w-fit max-h-full max-w-full">
+                {currentImage?.media_type.startsWith("image") ? (
+                  <img
+                    src={currentImage.url}
+                    alt={`Image ${currentIndex + 1}`}
+                    className="max-w-full max-h-full object-contain absolute"
+                  />
+                ) : (
+                  <video
+                    src={currentImage?.url}
+                    controls
+                    className="max-w-full max-h-full object-contain absolute"
+                  />
+                )}
+              </div>
             </div>
 
             {/* Navigation Buttons */}
@@ -150,9 +152,9 @@ export const PostMediaViewer = ({
         )}
 
         {/* Right Side - Post Content and Comments */}
-        <div className={`${hasImages ? 'w-96' : 'flex-1'} bg-background ${hasImages ? 'border-l border-border' : ''} flex flex-col ${hasImages ? 'h-[80vh]' : 'max-h-[80vh]'}`}>
+        <div className={`${hasImages ? 'w-96' : 'flex-1'} bg-background ${hasImages ? 'border-l border-border' : ''} flex flex-col ${hasImages ? 'h-[80vh]' : 'max-h-[80vh]'} overflow-y-auto`}>
           {/* Post Header */}
-          <div className="p-4 border-b border-border flex-shrink-0">
+          <div className="p-4 border-b border-border">
             <div className="flex items-center space-x-3 mb-3">
               <Avatar className="w-10 h-10">
                 <AvatarImage src={authorAvatar} />
@@ -222,7 +224,7 @@ export const PostMediaViewer = ({
           </div>
 
           {/* Post Actions */}
-          <div className="px-4 py-3 border-b border-border flex-shrink-0 flex items-center space-x-6">
+          <div className="px-4 py-3 border-b border-border flex items-center space-x-6">
             <Button
               variant="ghost"
               size="sm"
@@ -251,7 +253,9 @@ export const PostMediaViewer = ({
               <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
             </Button>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          
+          {/* Comments Section */}
+          <div className="p-4 space-y-4">
             {comments.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
                 No comments yet. Be the first!
@@ -334,19 +338,19 @@ export const PostMediaViewer = ({
             )}
           </div>
 
-          {/* Comment Input */}
-          <div className="p-4 border-t border-border flex-shrink-0 space-y-2">
+          {/* Comment Input - Sticky */}
+          <div className="sticky bottom-0 bg-background p-3 border-t border-border space-y-2">
             <Textarea
               placeholder="Write a comment..."
               value={newComment}
               onChange={(e) => onNewCommentChange(e.target.value)}
-              rows={2}
-              className="resize-none"
+              rows={1}
+              className="resize-none text-sm"
             />
             <Button
               onClick={onPostComment}
               disabled={!newComment.trim()}
-              className="w-full bg-gold hover:bg-gold-light text-navy"
+              className="w-full bg-gold hover:bg-gold-light text-navy text-sm h-8"
             >
               Post
             </Button>
