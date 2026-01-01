@@ -1,7 +1,10 @@
+import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { ArrowRight } from "lucide-react";
 
 export function CTABanner() {
+  const navigate = useNavigate();
+
   return (
     <div className="relative py-24 bg-gradient-to-br from-[#E8B555] via-[#F2C877] to-[#E8B555] overflow-hidden">
       {/* Decorative elements */}
@@ -17,6 +20,7 @@ export function CTABanner() {
         <Button
           size="lg"
           className="bg-[#0A2849] text-white hover:bg-[#154170] text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
+          onClick={() => navigate('/auth?tab=signup')}
         >
           Join Now
           <ArrowRight className="ml-2 w-6 h-6" />
