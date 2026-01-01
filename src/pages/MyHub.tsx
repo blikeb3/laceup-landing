@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserBadge } from "@/types/posts";
+import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
 
 interface Profile {
   id: string;
@@ -270,6 +271,14 @@ const MyHub = () => {
 
   const handleConnect = async (profileId: string) => {
     try {
+      // Check if they already have a connection to us (meaning they sent a request first)
+      const { data: existingConnection } = await supabase
+        .from("connections")
+        .select("id")
+        .eq("user_id", profileId)
+        .eq("connected_user_id", currentUserId)
+        .single();
+
       const { error } = await supabase
         .from("connections")
         .insert({
@@ -288,6 +297,28 @@ const MyHub = () => {
 
       // Refresh connections list
       await fetchConnections(currentUserId);
+
+      // Send notification
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', currentUserId)
+        .single();
+
+      if (currentUserProfile) {
+        const currentUserName = getFullName(
+          currentUserProfile.first_name,
+          currentUserProfile.last_name
+        );
+
+        // If they already connected to us, notify them we accepted
+        // Otherwise, notify them of the new connection request
+        if (existingConnection) {
+          await notifyConnectionAccepted(profileId, currentUserName, currentUserId);
+        } else {
+          await notifyConnectionRequest(profileId, currentUserName, currentUserId);
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",

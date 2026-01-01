@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/tooltip";
 import { fetchUserRoles } from "@/lib/roleUtils";
 import { BadgeType, UserBadge, ProfileInfo } from "@/types/posts";
+import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
 
 interface Profile {
   id: string;
@@ -264,6 +265,15 @@ const UserProfile = () => {
 
     try {
       setConnectionLoading(true);
+
+      // Check if they already have a connection to us (meaning they sent a request first)
+      const { data: existingConnection } = await supabase
+        .from("connections")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("connected_user_id", currentUserId)
+        .single();
+
       const { error } = await supabase
         .from("connections")
         .insert({
@@ -278,6 +288,28 @@ const UserProfile = () => {
         title: "Connected!",
         description: `You are now connected with ${getDisplayName(profile?.first_name, profile?.last_name, "this user")}.`,
       });
+
+      // Send notification
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', currentUserId)
+        .single();
+
+      if (currentUserProfile) {
+        const currentUserName = getDisplayName(
+          currentUserProfile.first_name,
+          currentUserProfile.last_name
+        );
+
+        // If they already connected to us, notify them we accepted
+        // Otherwise, notify them of the new connection request
+        if (existingConnection) {
+          await notifyConnectionAccepted(userId, currentUserName, currentUserId);
+        } else {
+          await notifyConnectionRequest(userId, currentUserName, currentUserId);
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",
