@@ -1,5 +1,9 @@
 import { Linkedin, Twitter, Instagram, Mail } from "lucide-react";
+<<<<<<< Updated upstream:src/components/landing-page/Footer.tsx
 import logo from "@/assets/laceup-logo-with-branding.png";
+=======
+import fullLogo from "../assets/fullLogo.png";
+>>>>>>> Stashed changes:src/components/Footer.tsx
 
 export function Footer() {
   const scrollToSection = (id: string) => {

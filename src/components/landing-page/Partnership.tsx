@@ -1,7 +1,11 @@
 import { Card } from "../ui/card";
 import { Award, Calendar, Trophy } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
+<<<<<<< Updated upstream:src/components/landing-page/Partnership.tsx
 import waldronCenter from "@/assets/waldron-center.png";
+=======
+import waldronImage from "../assets/waldronImage.png";
+>>>>>>> Stashed changes:src/components/Partnership.tsx
 
 export function Partnership() {
   return (
