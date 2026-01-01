@@ -169,13 +169,13 @@ export const Navigation = () => {
               <span className="text-2xl font-heading font-bold text-gold">LaceUP</span>
             </Link>
             {/* Search Bar - Desktop */}
-            <div className="hidden md:block">
+            <div className="hidden xl:block">
               <UserSearchBar />
             </div>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-1 gap-1 flex-shrink-0">
+          <div className="hidden xl:flex items-center space-x-1 gap-1 flex-shrink-0">
             <NavLinks />
 
             {/* Icons */}
@@ -201,7 +201,7 @@ export const Navigation = () => {
           </div>
 
           {/* Mobile Navigation */}
-          <div className="flex md:hidden items-center space-x-2">
+          <div className="flex xl:hidden items-center space-x-2">
             <Link to="/profile" className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center font-semibold text-xs overflow-hidden">
               <Avatar imageUrl={userProfile?.avatar_url} />
             </Link>
