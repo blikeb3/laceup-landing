@@ -53,7 +53,7 @@ export function HowItWorks() {
                     {step.number}
                   </div>
                   <h3 className="text-xl mb-3 text-[#0A2849]">
-                    {step.number}️⃣ {step.title}
+                    {step.title}
                   </h3>
                   <p className="text-muted-foreground">
                     {step.description}
