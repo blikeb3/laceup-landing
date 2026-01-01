@@ -4,6 +4,10 @@ import { Button } from "../ui/button";
 export function Hero() {
   const navigate = useNavigate();
 
+  const scrollToSection = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="relative overflow-hidden bg-gradient-to-br from-[#0A2849] via-[#154170] to-[#0A2849]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 lg:py-40 relative z-10">
@@ -21,7 +25,7 @@ export function Hero() {
             <Button
               size="lg"
               className="text-lg px-10 py-7 bg-[#E8B555] text-[#0A2849] hover:bg-[#F2C877] shadow-xl hover:shadow-2xl transition-all duration-300"
-              onClick={() => navigate('/auth?tab=signup')}
+              onClick={() => scrollToSection('why-we-exist')}
             >
               Learn More
             </Button>

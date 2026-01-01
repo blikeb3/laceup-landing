@@ -4,7 +4,7 @@ import { AnimatedSection } from "./AnimatedSection";
 
 export function ValueProposition() {
   return (
-    <div className="py-20 bg-white">
+    <div className="py-20 bg-white" id="why-we-exist">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection>
           <div className="text-center mb-16">
