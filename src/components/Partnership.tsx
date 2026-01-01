@@ -1,7 +1,6 @@
 import { Card } from "./ui/card";
 import { Award, Calendar, Trophy } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import waldronImage from 'figma:asset/a9d21567b6128f03ce6f53f85430a841b0b83a35.png';
 
 export function Partnership() {
   return (
@@ -36,7 +35,7 @@ export function Partnership() {
                   <p className="text-[#E8B555]">Harding University</p>
                 </div>
               </div>
-              
+
               <p className="text-muted-foreground mb-6">
                 Selected as a finalist for Harding University's prestigious Shark Tank competition, hosted by the Waldron Center for Entrepreneurship and Family Business.
               </p>
@@ -52,8 +51,8 @@ export function Partnership() {
 
             <div className="relative">
               <div className="aspect-[4/3] rounded-2xl overflow-hidden border-4 border-[#E8B555]/20 shadow-xl">
-                <img 
-                  src={waldronImage}
+                <img
+                  src={"src/assets/a9d21567b6128f03ce6f53f85430a841b0b83a35.png"}
                   alt="Waldron Center for Entrepreneurship and Family Business - Harding University"
                   className="w-full h-full object-cover"
                 />
