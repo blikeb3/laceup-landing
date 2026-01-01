@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Menu, X } from "lucide-react";
-import newLogo from "../assets/newLogo.png";;
+import newLogo from "@/assets/laceupLogo.png";
 
 export function Header() {
   const navigate = useNavigate();
