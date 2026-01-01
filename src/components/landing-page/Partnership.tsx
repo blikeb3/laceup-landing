@@ -1,11 +1,7 @@
 import { Card } from "../ui/card";
 import { Award, Calendar, Trophy } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-<<<<<<< Updated upstream:src/components/landing-page/Partnership.tsx
-import waldronCenter from "@/assets/waldron-center.png";
-=======
 import waldronImage from "../assets/waldronImage.png";
->>>>>>> Stashed changes:src/components/Partnership.tsx
 
 export function Partnership() {
   return (
@@ -57,7 +53,7 @@ export function Partnership() {
             <div className="relative">
               <div className="aspect-[4/3] rounded-2xl overflow-hidden border-4 border-[#E8B555]/20 shadow-xl">
                 <img
-                  src={waldronCenter}
+                  src={waldronImage}
                   alt="Waldron Center for Entrepreneurship and Family Business - Harding University"
                   className="w-full h-full object-cover"
                 />
