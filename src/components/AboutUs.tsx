@@ -1,6 +1,4 @@
 import { Card } from "./ui/card";
-import loganHeadshot from 'figma:asset/b258605b58cbc9aec9f17d1455897ea549b25ec1.png';
-import hudsonHeadshot from 'figma:asset/dbde4ba8d814b681757558ae9540539a04a4c31b.png';
 
 export function AboutUs() {
   const founders = [
@@ -8,13 +6,13 @@ export function AboutUs() {
       name: "Logan Lacey",
       title: "CEO & Co-Founder",
       description: "Decorated DII athlete with a background in wealth management and accounting. Logan understands the unique financial and professional challenges athletes face during transition.",
-      headshot: loganHeadshot
+      headshot: "src/assets/b258605b58cbc9aec9f17d1455897ea549b25ec1.png"
     },
     {
       name: "Hudson Vaughn",
       title: "COO & Co-Founder",
       description: "DII athlete with expertise in marketing, sales, and an MSIS degree. Hudson serves as an NCAA representative and brings deep knowledge of athlete development.",
-      headshot: hudsonHeadshot
+      headshot: "src/assets/dbde4ba8d814b681757558ae9540539a04a4c31b.png"
     }
   ];
 
@@ -23,7 +21,7 @@ export function AboutUs() {
       {/* Decorative elements */}
       <div className="absolute top-1/4 left-0 w-96 h-96 bg-[#E8B555] rounded-full blur-3xl opacity-5"></div>
       <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-[#E8B555] rounded-full blur-3xl opacity-5"></div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="text-center mb-20">
           <h2 className="text-4xl lg:text-5xl mb-6 text-white">Built by Athletes, For Athletes</h2>
@@ -38,13 +36,13 @@ export function AboutUs() {
               <div className="relative">
                 {/* Headshot */}
                 <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-[#E8B555]/10 to-transparent">
-                  <img 
+                  <img
                     src={founder.headshot}
                     alt={`${founder.name} - ${founder.title}`}
                     className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
                   />
                 </div>
-                
+
                 {/* Content */}
                 <div className="p-8">
                   <div className="mb-4">

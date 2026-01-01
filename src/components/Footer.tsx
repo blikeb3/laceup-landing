@@ -1,5 +1,4 @@
 import { Linkedin, Twitter, Instagram, Mail } from "lucide-react";
-import fullLogo from "figma:asset/bb4ee4e8744fd42fb2cccf2bdd99bb628c1f9157.png";
 
 export function Footer() {
   const scrollToSection = (id: string) => {
@@ -13,40 +12,40 @@ export function Footer() {
           {/* Brand */}
           <div className="md:col-span-2">
             <div className="mb-6">
-              <img src={fullLogo} alt="LaceUp - Wealth Beyond The Field" className="h-12 w-auto" />
+              <img src={"src/assets/bb4ee4e8744fd42fb2cccf2bdd99bb628c1f9157.png"} alt="LaceUp - Wealth Beyond The Field" className="h-12 w-auto" />
             </div>
             <p className="text-white/70 mb-6 max-w-md leading-relaxed">
               Empowering athletes to transition beyond the game through meaningful connections, mentorship, and career opportunities.
             </p>
             <div className="flex gap-4">
-              <a 
-                href="https://www.linkedin.com/company/laceup-network" 
-                target="_blank" 
+              <a
+                href="https://www.linkedin.com/company/laceup-network"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-[#E8B555] transition-colors"
                 aria-label="LinkedIn"
               >
                 <Linkedin className="w-5 h-5" />
               </a>
-              <a 
-                href="https://twitter.com/laceupnetwork" 
-                target="_blank" 
+              <a
+                href="https://twitter.com/laceupnetwork"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-[#E8B555] transition-colors"
                 aria-label="Twitter/X"
               >
                 <Twitter className="w-5 h-5" />
               </a>
-              <a 
-                href="https://instagram.com/laceupnetwork" 
-                target="_blank" 
+              <a
+                href="https://instagram.com/laceupnetwork"
+                target="_blank"
                 rel="noopener noreferrer"
                 className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-[#E8B555] transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="w-5 h-5" />
               </a>
-              <a 
+              <a
                 href="mailto:contact@laceupnetwork.com"
                 className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center hover:bg-[#E8B555] transition-colors"
                 aria-label="Email"
@@ -61,7 +60,7 @@ export function Footer() {
             <h4 className="mb-4 text-[#E8B555]">Quick Links</h4>
             <ul className="space-y-3">
               <li>
-                <button 
+                <button
                   onClick={() => scrollToSection('how-it-works')}
                   className="text-white/70 hover:text-[#E8B555] transition-colors"
                 >
@@ -69,7 +68,7 @@ export function Footer() {
                 </button>
               </li>
               <li>
-                <button 
+                <button
                   onClick={() => scrollToSection('benefits')}
                   className="text-white/70 hover:text-[#E8B555] transition-colors"
                 >
@@ -77,7 +76,7 @@ export function Footer() {
                 </button>
               </li>
               <li>
-                <button 
+                <button
                   onClick={() => scrollToSection('faq')}
                   className="text-white/70 hover:text-[#E8B555] transition-colors"
                 >
@@ -85,7 +84,7 @@ export function Footer() {
                 </button>
               </li>
               <li>
-                <button 
+                <button
                   onClick={() => scrollToSection('waitlist')}
                   className="text-white/70 hover:text-[#E8B555] transition-colors"
                 >
