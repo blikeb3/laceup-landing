@@ -21,6 +21,9 @@ export const SEOHead = () => {
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: window.location.href },
       { property: 'og:site_name', content: 'LaceUP' },
+      { property: 'og:image', content: `${window.location.origin}/laceup-logo-with-branding.png` },
+      { property: 'og:image:width', content: '1200' },
+      { property: 'og:image:height', content: '630' },
     ];
 
     ogTags.forEach(({ property, content }) => {
@@ -40,6 +43,7 @@ export const SEOHead = () => {
       { name: 'twitter:creator', content: '@laceupnetwork' },
       { name: 'twitter:title', content: 'LaceUp - Professional Networking for Athletes' },
       { name: 'twitter:description', content: 'Connect. Transition. Succeed Beyond the Game. Join the exclusive network for athletes, mentors, and businesses.' },
+      { name: 'twitter:image', content: `${window.location.origin}/laceup-logo-with-branding.png` },
     ];
 
     twitterTags.forEach(({ name, content }) => {
