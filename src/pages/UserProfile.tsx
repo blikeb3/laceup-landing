@@ -44,6 +44,14 @@ interface JobExperience {
   description?: string;
 }
 
+interface Degree {
+  id?: string;
+  degree: string;
+  field: string;
+  institution: string;
+  year: string;
+}
+
 interface Profile {
   id: string;
   first_name?: string | null;
@@ -51,6 +59,7 @@ interface Profile {
   biography?: string | null;
   location?: string | null;
   degree?: string | null;
+  degrees?: Degree[] | null;
   about?: string | null;
   skills?: string[] | null;
   avatar_url?: string | null;
@@ -162,17 +171,29 @@ const UserProfile = () => {
       const rawJobs = (profileData.job_experiences as unknown) || [];
       const parsedJobs: JobExperience[] = Array.isArray(rawJobs)
         ? rawJobs.map((j) => ({
-            company: "",
-            position: "",
-            startDate: "",
-            endDate: "",
-            currentlyWorking: false,
-            description: "",
-            ...(j as Partial<JobExperience>),
-          }))
+          company: "",
+          position: "",
+          startDate: "",
+          endDate: "",
+          currentlyWorking: false,
+          description: "",
+          ...(j as Partial<JobExperience>),
+        }))
         : [];
       const sortedJobs = sortJobExperiences(parsedJobs);
-      setProfile({ ...(sanitizedProfile as Profile), job_experiences: sortedJobs });
+
+      const rawDegrees = (profileData.degrees as unknown) || [];
+      const parsedDegrees: Degree[] = Array.isArray(rawDegrees)
+        ? rawDegrees.map((d: any) => ({
+          degree: d.degree || '',
+          field: d.field || '',
+          institution: d.institution || '',
+          year: d.year || '',
+          ...(d.id && { id: d.id }),
+        }))
+        : [];
+
+      setProfile({ ...(sanitizedProfile as Profile), job_experiences: sortedJobs, degrees: parsedDegrees });
 
       // Fetch user role
       const { baseRole, hasAdminRole } = await fetchUserRoles(userId);
@@ -543,12 +564,6 @@ const UserProfile = () => {
                   {profile.location}
                 </span>
               )}
-              {profile.degree && (
-                <span className="flex items-center text-sm">
-                  <Briefcase className="h-4 w-4 mr-1" />
-                  {profile.degree}
-                </span>
-              )}
             </div>
 
             {/* University & Sport */}
@@ -609,6 +624,35 @@ const UserProfile = () => {
                 Academic Accomplishments
               </h2>
               <p className="text-foreground leading-relaxed whitespace-pre-line">{profile.academic_accomplishments}</p>
+            </Card>
+          )}
+
+          {/* Education */}
+          {profile.degrees && profile.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {profile.degrees.map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
