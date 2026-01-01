@@ -2,19 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { secureLog } from "@/lib/secureLog";
-
-// Allowed file types for uploads
-const ALLOWED_FILE_TYPES = {
-    images: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
-    videos: ['video/mp4', 'video/quicktime', 'video/x-msvideo'],
-    all: [] as string[]
-};
-
-// Combine all allowed types
-ALLOWED_FILE_TYPES.all = [...ALLOWED_FILE_TYPES.images, ...ALLOWED_FILE_TYPES.videos];
-
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB for videos
-const MAX_FILES = 10;
+import { ALLOWED_IMAGE_AND_VIDEO_TYPES, MAX_VIDEO_SIZE, MAX_IMAGE_SIZE, MAX_FILES_PER_POST } from "@/constants/fileUpload";
 
 interface PostMediaFile {
     file: File;
@@ -41,17 +29,17 @@ export const useMultiFileUpload = () => {
 
         for (const file of files) {
             // Check max files limit
-            if (mediaFiles.length + newMediaFiles.length >= MAX_FILES) {
+            if (mediaFiles.length + newMediaFiles.length >= MAX_FILES_PER_POST) {
                 toast({
                     title: "Too many files",
-                    description: `Maximum ${MAX_FILES} files allowed per post`,
+                    description: `Maximum ${MAX_FILES_PER_POST} files allowed per post`,
                     variant: "destructive"
                 });
                 break;
             }
 
             // Validate file type
-            if (!ALLOWED_FILE_TYPES.all.includes(file.type)) {
+            if (!ALLOWED_IMAGE_AND_VIDEO_TYPES.includes(file.type)) {
                 toast({
                     title: "Invalid file type",
                     description: `${file.name} - Only images (JPEG, PNG, GIF, WebP) and videos (MP4, MOV, AVI) are allowed`,
@@ -62,7 +50,7 @@ export const useMultiFileUpload = () => {
             }
 
             // Validate file size
-            const maxSize = file.type.startsWith('video') ? MAX_FILE_SIZE : 10 * 1024 * 1024;
+            const maxSize = file.type.startsWith('video') ? MAX_VIDEO_SIZE : MAX_IMAGE_SIZE;
             if (file.size > maxSize) {
                 toast({
                     title: "File too large",
