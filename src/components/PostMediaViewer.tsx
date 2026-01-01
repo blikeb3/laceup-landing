@@ -17,45 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { UserBadge, PostComment, PostMediaImage } from "@/types/posts";
-
-// Helper to render content with mentions, hashtags and URLs
-const renderPostContent = (content: string) => {
-  // Escape HTML to prevent XSS
-  const escapeHtml = (text: string) => {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  };
-
-  const escapedContent = escapeHtml(content);
-
-  // Convert @mentions to clickable profile links
-  const mentionRegex = /@\[([a-f0-9-]+):([^\]]+)\]/g;
-  const contentWithMentions = escapedContent.replace(
-    mentionRegex,
-    (_, userId, displayName) => {
-      return `<a href="/profile/${userId}" class="text-gold font-semibold hover:underline">@${displayName}</a>`;
-    }
-  );
-
-  // Convert URLs to clickable links
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const contentWithLinks = contentWithMentions.replace(
-    urlRegex,
-    (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-gold hover:text-gold-light underline">${url}</a>`
-  );
-
-  // Convert hashtags to styled spans
-  const contentWithHashtags = contentWithLinks.replace(
-    /#(\w+)/g,
-    '<span class="text-gold font-semibold">#$1</span>'
-  );
-
-  return DOMPurify.sanitize(contentWithHashtags, {
-    ALLOWED_TAGS: ['span', 'a'],
-    ALLOWED_ATTR: ['class', 'href', 'target', 'rel']
-  });
-};
+import { renderPostContent } from "@/lib/htmlUtils";
 
 interface PostMediaViewerProps {
   images: PostMediaImage[];

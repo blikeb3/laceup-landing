@@ -2,18 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { secureLog } from "@/lib/secureLog";
-
-// Allowed file types for uploads
-const ALLOWED_FILE_TYPES = {
-    images: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
-    documents: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-    all: [] as string[]
-};
-
-// Combine all allowed types
-ALLOWED_FILE_TYPES.all = [...ALLOWED_FILE_TYPES.images, ...ALLOWED_FILE_TYPES.documents];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+import { ALLOWED_IMAGE_AND_DOCUMENT_TYPES, MAX_DOCUMENT_SIZE } from "@/constants/fileUpload";
 
 interface FileData {
     url: string;
@@ -33,7 +22,7 @@ export const useFileUpload = () => {
         if (!file) return;
 
         // Validate file type
-        if (!ALLOWED_FILE_TYPES.all.includes(file.type)) {
+        if (!ALLOWED_IMAGE_AND_DOCUMENT_TYPES.includes(file.type)) {
             toast({
                 title: "Invalid file type",
                 description: "Please select an image (JPEG, PNG, GIF, WebP) or document (PDF, Word)",
@@ -44,7 +33,7 @@ export const useFileUpload = () => {
         }
 
         // Validate file size (max 10MB)
-        if (file.size > MAX_FILE_SIZE) {
+        if (file.size > MAX_DOCUMENT_SIZE) {
             toast({
                 title: "File too large",
                 description: "Please select a file smaller than 10MB",
