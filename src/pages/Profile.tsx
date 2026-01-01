@@ -167,6 +167,21 @@ const Profile = () => {
     });
   };
 
+  const sortDegrees = (degrees: Degree[] = []) => {
+    return [...degrees].sort((a, b) => {
+      // Extract year for comparison - handle ranges like "2020-2024" by taking the end year
+      const getYear = (yearStr: string) => {
+        if (!yearStr) return 0;
+        const match = yearStr.match(/(\d{4})(?:-\d{4})?$/);
+        return match ? parseInt(match[1]) : 0;
+      };
+      const yearA = getYear(a.year);
+      const yearB = getYear(b.year);
+      // Sort descending (most recent first)
+      return yearB - yearA;
+    });
+  };
+
   const setSortedJobExperiences = (updater: (jobs: JobExperience[]) => JobExperience[]) => {
     setFormData(prev => {
       const current = prev.jobExperiences || [];
@@ -1439,7 +1454,7 @@ const Profile = () => {
                 Education
               </h2>
               <div className="space-y-4">
-                {profileData.degrees.map((degree, index) => (
+                {sortDegrees(profileData.degrees).map((degree, index) => (
                   <div key={index} className="pb-4 border-b last:border-0">
                     <div className="flex items-start justify-between">
                       <div>
