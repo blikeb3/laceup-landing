@@ -11,6 +11,7 @@ import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { sanitizeProfileForViewer } from "@/lib/contactPrivacy";
 import { trackProfileView } from "@/hooks/useUserAnalytics";
 import { getDisplayName, getInitials } from "@/lib/nameUtils";
+import { formatDateLong } from "@/lib/dateFormat";
 import { EndorsementDialog } from "@/components/EndorsementDialog";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -109,6 +110,14 @@ const UserProfile = () => {
       }
       return endB.localeCompare(endA);
     });
+  };
+
+  const formatJobDateRange = (job: JobExperience) => {
+    const start = formatDateLong(job.startDate) || "Start date not set";
+    const end = job.currentlyWorking
+      ? "Present"
+      : (formatDateLong(job.endDate) || "End date not set");
+    return `${start} - ${end}`;
   };
 
   const fetchProfile = useCallback(async () => {
@@ -578,7 +587,6 @@ const UserProfile = () => {
               </h2>
               <div className="space-y-4">
                 {profile.job_experiences.map((job, index) => {
-                  const dateRange = `${job.startDate || "Start date not set"} - ${job.currentlyWorking ? "Present" : job.endDate || "End date not set"}`;
                   return (
                     <div key={`${job.id || index}`} className="border border-border rounded-lg p-4">
                       <div className="flex items-center justify-between">
@@ -586,7 +594,7 @@ const UserProfile = () => {
                           <p className="font-semibold text-base">{job.position || "Role not specified"}</p>
                           <p className="text-sm text-muted-foreground">{job.company || "Company not specified"}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground whitespace-nowrap">{dateRange}</p>
+                        <p className="text-xs text-muted-foreground whitespace-nowrap">{formatJobDateRange(job)}</p>
                       </div>
                       {job.description && (
                         <p className="text-sm text-muted-foreground mt-2 whitespace-pre-line">{job.description}</p>
