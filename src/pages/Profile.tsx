@@ -146,6 +146,25 @@ const Profile = () => {
   const [roleChangeReason, setRoleChangeReason] = useState<string>("");
   const [submittingRoleChange, setSubmittingRoleChange] = useState(false);
 
+  const sortJobExperiences = (jobs: JobExperience[] = []) => {
+    return [...jobs].sort((a, b) => {
+      const endA = a.currentlyWorking ? "9999-12-31" : a.endDate || a.startDate || "";
+      const endB = b.currentlyWorking ? "9999-12-31" : b.endDate || b.startDate || "";
+      if (endA === endB) {
+        return (b.startDate || "").localeCompare(a.startDate || "");
+      }
+      return endB.localeCompare(endA);
+    });
+  };
+
+  const setSortedJobExperiences = (updater: (jobs: JobExperience[]) => JobExperience[]) => {
+    setFormData(prev => {
+      const current = prev.jobExperiences || [];
+      const next = sortJobExperiences(updater([...current]));
+      return { ...prev, jobExperiences: next };
+    });
+  };
+
   // Use real analytics
   const { postsCount, connectionsCount, profileViewsCount, loading: analyticsLoading } = useUserAnalytics(currentUserId);
 
@@ -209,7 +228,9 @@ const Profile = () => {
         academicAccomplishments: data.academic_accomplishments,
         contactPrivacy: (data.contact_privacy as 'public' | 'connections' | 'private') || 'connections',
         resumeUrl: data.resume_url,
-        jobExperiences: (Array.isArray(data.job_experiences) ? (data.job_experiences as unknown as JobExperience[]) : []) || [],
+        jobExperiences: sortJobExperiences(
+          (Array.isArray(data.job_experiences) ? (data.job_experiences as unknown as JobExperience[]) : []) || []
+        ),
         createdAt: data.created_at,
         userBadges: badgesData || []
       };
@@ -617,6 +638,8 @@ const Profile = () => {
         avatar_url: avatarUrl
       });
 
+      const sortedJobExperiences = sortJobExperiences(formData.jobExperiences || []);
+
       const { error } = await supabase
         .from("profiles")
         .update({
@@ -635,7 +658,7 @@ const Profile = () => {
           athletic_accomplishments: formData.athleticAccomplishments,
           academic_accomplishments: formData.academicAccomplishments,
           contact_privacy: formData.contactPrivacy,
-          job_experiences: (formData.jobExperiences || []) as unknown as Json[]
+          job_experiences: sortedJobExperiences as unknown as Json[]
         })
         .eq("id", user.id);
 
@@ -646,7 +669,7 @@ const Profile = () => {
 
       console.log("Profile updated successfully");
 
-      const updatedData = { ...formData, avatarUrl, skills: skillsArray };
+      const updatedData = { ...formData, avatarUrl, skills: skillsArray, jobExperiences: sortedJobExperiences };
       setProfileData(updatedData);
       setFormData(updatedData);
       setSelectedFile(null);
@@ -1012,9 +1035,10 @@ const Profile = () => {
                                       <Input
                                         value={job.company}
                                         onChange={(e) => {
-                                          const updated = [...(formData.jobExperiences || [])];
-                                          updated[idx].company = e.target.value;
-                                          setFormData({ ...formData, jobExperiences: updated });
+                                          setSortedJobExperiences((jobs) => {
+                                            jobs[idx].company = e.target.value;
+                                            return jobs;
+                                          });
                                         }}
                                         placeholder="Company name"
                                         className="text-sm"
@@ -1025,9 +1049,10 @@ const Profile = () => {
                                       <Input
                                         value={job.position}
                                         onChange={(e) => {
-                                          const updated = [...(formData.jobExperiences || [])];
-                                          updated[idx].position = e.target.value;
-                                          setFormData({ ...formData, jobExperiences: updated });
+                                          setSortedJobExperiences((jobs) => {
+                                            jobs[idx].position = e.target.value;
+                                            return jobs;
+                                          });
                                         }}
                                         placeholder="Job title"
                                         className="text-sm"
@@ -1041,9 +1066,10 @@ const Profile = () => {
                                         type="date"
                                         value={job.startDate}
                                         onChange={(e) => {
-                                          const updated = [...(formData.jobExperiences || [])];
-                                          updated[idx].startDate = e.target.value;
-                                          setFormData({ ...formData, jobExperiences: updated });
+                                          setSortedJobExperiences((jobs) => {
+                                            jobs[idx].startDate = e.target.value;
+                                            return jobs;
+                                          });
                                         }}
                                         className="text-sm"
                                       />
@@ -1054,9 +1080,10 @@ const Profile = () => {
                                         type="date"
                                         value={job.endDate}
                                         onChange={(e) => {
-                                          const updated = [...(formData.jobExperiences || [])];
-                                          updated[idx].endDate = e.target.value;
-                                          setFormData({ ...formData, jobExperiences: updated });
+                                          setSortedJobExperiences((jobs) => {
+                                            jobs[idx].endDate = e.target.value;
+                                            return jobs;
+                                          });
                                         }}
                                         disabled={job.currentlyWorking}
                                         className="text-sm"
@@ -1069,12 +1096,13 @@ const Profile = () => {
                                       id={`currently-working-${idx}`}
                                       checked={job.currentlyWorking || false}
                                       onChange={(e) => {
-                                        const updated = [...(formData.jobExperiences || [])];
-                                        updated[idx].currentlyWorking = e.target.checked;
-                                        if (e.target.checked) {
-                                          updated[idx].endDate = '';
-                                        }
-                                        setFormData({ ...formData, jobExperiences: updated });
+                                        setSortedJobExperiences((jobs) => {
+                                          jobs[idx].currentlyWorking = e.target.checked;
+                                          if (e.target.checked) {
+                                            jobs[idx].endDate = '';
+                                          }
+                                          return jobs;
+                                        });
                                       }}
                                     />
                                     <Label htmlFor={`currently-working-${idx}`} className="text-xs cursor-pointer">
@@ -1086,9 +1114,10 @@ const Profile = () => {
                                     <Textarea
                                       value={job.description || ''}
                                       onChange={(e) => {
-                                        const updated = [...(formData.jobExperiences || [])];
-                                        updated[idx].description = e.target.value;
-                                        setFormData({ ...formData, jobExperiences: updated });
+                                        setSortedJobExperiences((jobs) => {
+                                          jobs[idx].description = e.target.value;
+                                          return jobs;
+                                        });
                                       }}
                                       placeholder="Describe your responsibilities and achievements..."
                                       rows={2}
@@ -1101,8 +1130,7 @@ const Profile = () => {
                                   variant="ghost"
                                   size="sm"
                                   onClick={() => {
-                                    const updated = (formData.jobExperiences || []).filter((_, i) => i !== idx);
-                                    setFormData({ ...formData, jobExperiences: updated });
+                                    setSortedJobExperiences((jobs) => jobs.filter((_, i) => i !== idx));
                                   }}
                                   className="text-red-600 hover:text-red-700"
                                 >
@@ -1126,10 +1154,7 @@ const Profile = () => {
                               currentlyWorking: false,
                               description: ''
                             };
-                            setFormData({
-                              ...formData,
-                              jobExperiences: [...(formData.jobExperiences || []), newJob]
-                            });
+                            setSortedJobExperiences((jobs) => [...jobs, newJob]);
                           }}
                           className="w-full"
                         >
