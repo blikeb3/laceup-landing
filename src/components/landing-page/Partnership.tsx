@@ -1,7 +1,7 @@
 import { Card } from "../ui/card";
 import { Award, Calendar, Trophy } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import waldronImage from "../assets/waldronImage.png";
+import waldronCenter from "@/assets/waldronCenter.png";
 
 export function Partnership() {
   return (
@@ -53,7 +53,7 @@ export function Partnership() {
             <div className="relative">
               <div className="aspect-[4/3] rounded-2xl overflow-hidden border-4 border-[#E8B555]/20 shadow-xl">
                 <img
-                  src={waldronImage}
+                  src={waldronCenter}
                   alt="Waldron Center for Entrepreneurship and Family Business - Harding University"
                   className="w-full h-full object-cover"
                 />
