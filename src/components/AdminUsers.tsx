@@ -44,6 +44,7 @@ interface UserWithBadges {
   first_name: string | null;
   last_name: string | null;
   created_at: string | null;
+  approval_status?: string | null;
   badges: Badge[];
 }
 
@@ -87,7 +88,8 @@ export const AdminUsers = () => {
     try {
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, created_at")
+        .select("id, email, first_name, last_name, created_at, approval_status")
+        .eq("approval_status", "approved")
         .order("created_at", { ascending: false });
 
       if (profileError) throw profileError;
