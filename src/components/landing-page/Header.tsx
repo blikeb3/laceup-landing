@@ -2,7 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
 import { Menu, X } from "lucide-react";
+<<<<<<< Updated upstream:src/components/landing-page/Header.tsx
 import logo from "@/assets/laceup-logo.png";
+=======
+import newLogo from "../assets/newLogo.png";;
+>>>>>>> Stashed changes:src/components/Header.tsx
 
 export function Header() {
   const navigate = useNavigate();
