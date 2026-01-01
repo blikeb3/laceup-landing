@@ -18,8 +18,8 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-20">
           <div className="flex items-center cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <img src={newLogo} alt="LaceUp" className="h-12 w-auto" />
-            <span className="ml-3 text-2xl text-[#0A2849]">LaceUp</span>
+            <img src={newLogo} alt="LaceUP" className="h-12 w-auto" />
+            <span className="ml-3 text-2xl text-[#0A2849]">LaceUP</span>
           </div>
 
           {/* Desktop Navigation */}
@@ -35,12 +35,6 @@ export function Header() {
               className="text-[#0A2849]/70 hover:text-[#0A2849] transition-colors"
             >
               Benefits
-            </button>
-            <button
-              onClick={() => scrollToSection('about')}
-              className="text-[#0A2849]/70 hover:text-[#0A2849] transition-colors"
-            >
-              About
             </button>
             <div className="flex items-center gap-3">
               <Button

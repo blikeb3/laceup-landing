@@ -3,7 +3,7 @@ import { useEffect } from 'react';
 export const SEOHead = () => {
   useEffect(() => {
     // Set page title
-    document.title = "LaceUp - Professional Networking for Athletes | Join the Waitlist";
+    document.title = "LaceUP - Professional Networking for Athletes | Join the Waitlist";
 
     // Set meta description
     let metaDescription = document.querySelector('meta[name="description"]');
@@ -12,15 +12,15 @@ export const SEOHead = () => {
       metaDescription.setAttribute('name', 'description');
       document.head.appendChild(metaDescription);
     }
-    metaDescription.setAttribute('content', 'Join LaceUp, the exclusive professional network for athletes. Connect with mentors, alumni, and career opportunities. Empowering student-athletes to transition beyond the game and succeed in business.');
+    metaDescription.setAttribute('content', 'Join LaceUP, the exclusive professional network for athletes. Connect with mentors, alumni, and career opportunities. Empowering student-athletes to transition beyond the game and succeed in business.');
 
     // Set Open Graph tags for social media
     const ogTags = [
-      { property: 'og:title', content: 'LaceUp - Professional Networking for Athletes' },
-      { property: 'og:description', content: 'Connect. Transition. Succeed Beyond the Game. Join 100+ athletes and 20+ business leaders transforming athletic careers. Shark Tank Finalist Oct 30.' },
+      { property: 'og:title', content: 'LaceUP - Professional Networking for Athletes' },
+      { property: 'og:description', content: 'Life beyond the game starts here. Built exclusively for athletes transitioning from their sport into their careers. Connecting talent with mentors, alumni, and real professional opportunities.' },
       { property: 'og:type', content: 'website' },
       { property: 'og:url', content: window.location.href },
-      { property: 'og:site_name', content: 'LaceUp' },
+      { property: 'og:site_name', content: 'LaceUP' },
     ];
 
     ogTags.forEach(({ property, content }) => {
