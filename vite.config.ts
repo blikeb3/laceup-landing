@@ -1,20 +1,4 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react-swc";
-import path from "path";
-import { componentTagger } from "lovable-tagger";
 
-<<<<<<< Updated upstream
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
-  server: {
-    host: "::",
-    port: 8080,
-  },
-  plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
-  resolve: {
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-=======
   import { defineConfig } from 'vite';
   import react from '@vitejs/plugin-react-swc';
   import path from 'path';
@@ -33,6 +17,9 @@ export default defineConfig(({ mode }) => ({
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
+        'figma:asset/e2d0d0da8311e96120b81e0ce3d9068dc1ce6b99.png': path.resolve(__dirname, './src/assets/e2d0d0da8311e96120b81e0ce3d9068dc1ce6b99.png'),
+        'figma:asset/bb4ee4e8744fd42fb2cccf2bdd99bb628c1f9157.png': path.resolve(__dirname, './src/assets/bb4ee4e8744fd42fb2cccf2bdd99bb628c1f9157.png'),
+        'figma:asset/a9d21567b6128f03ce6f53f85430a841b0b83a35.png': path.resolve(__dirname, './src/assets/a9d21567b6128f03ce6f53f85430a841b0b83a35.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
@@ -65,7 +52,13 @@ export default defineConfig(({ mode }) => ({
         '@jsr/supabase__supabase-js@2.49.8': '@jsr/supabase__supabase-js',
         '@': path.resolve(__dirname, './src'),
       },
->>>>>>> Stashed changes
     },
-  },
-}));
+    build: {
+      target: 'esnext',
+      outDir: 'build',
+    },
+    server: {
+      port: 3000,
+      open: true,
+    },
+  });

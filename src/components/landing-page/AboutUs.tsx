@@ -1,12 +1,7 @@
-<<<<<<< Updated upstream:src/components/landing-page/AboutUs.tsx
 import { Card } from "../ui/card";
 import loganHeadshot from "@/assets/logan-headshot.png";
 import hudsonHeadshot from "@/assets/hudson-headshot.png";
-=======
-import { Card } from "./ui/card";
-import loganHeadshot from '..assets/loganHeadshot.png';
-import hudsonHeadshot from '..assets/hudsonHeadshot.png';
->>>>>>> Stashed changes:src/components/AboutUs.tsx
+
 
 export function AboutUs() {
   const founders = [
