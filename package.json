@@ -2,6 +2,7 @@
     "name": "laceup",
     "version": "0.1.0",
     "private": true,
+    "type": "module",
     "dependencies": {
         "@hookform/resolvers": "^3.10.0",
         "@jsr/supabase__supabase-js": "^2.49.8",
