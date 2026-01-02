@@ -1,18 +1,15 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Bell, MessageSquare, Shield, LogOut, Briefcase, Users, Menu, X } from "lucide-react";
+import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Session } from "@supabase/supabase-js";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserSearchBar } from "@/components/UserSearchBar";
 
 export const Navigation = () => {
   const [isAdmin, setIsAdmin] = useState(false);
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
   const [userProfile, setUserProfile] = useState<{ first_name?: string | null; last_name?: string | null; avatar_url?: string | null } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -32,7 +29,6 @@ export const Navigation = () => {
 
       if (mounted) {
         const role = roleData.data?.[0]?.role ?? null;
-        setUserRole(role);
         setIsAdmin(role === "admin");
         setUserProfile(profileData.data);
       }
@@ -40,7 +36,6 @@ export const Navigation = () => {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
-        setSession(session);
         if (session?.user) {
           loadUserData(session.user.id);
         }
@@ -50,12 +45,10 @@ export const Navigation = () => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         if (mounted) {
-          setSession(session);
           if (session?.user) {
             loadUserData(session.user.id);
           } else {
             setIsAdmin(false);
-            setUserRole(null);
             setUserProfile(null);
           }
         }

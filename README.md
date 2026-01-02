@@ -89,6 +89,18 @@ npx supabase db push
 npx supabase gen types typescript --project-id your-project-id > src/integrations/supabase/types.ts
 ```
 
+### Referral email invites (Brevo)
+
+- Run migrations to add the `referrals` table: `npx supabase db push`.
+- Deploy Edge Functions: `supabase functions deploy send-referral` and `supabase functions deploy referral-joined`.
+- Configure function secrets (Supabase Dashboard → Edge Functions → Manage secrets):
+	- `SUPABASE_SERVICE_ROLE_KEY`
+	- `BREVO_API_KEY`
+	- `BREVO_REFERRAL_TEMPLATE_ID` (Brevo template that supports params: `referrerName`, `invitedName`, `personalMessage`, `ctaUrl`)
+	- `BREVO_SENDER_EMAIL`, `BREVO_SENDER_NAME`
+	- `REFERRAL_SIGNUP_URL` (e.g., `https://app.laceup.com/auth?tab=signup` — `?ref=` is appended automatically)
+- The `send-referral` function enforces 20 invites per user per 24 hours and blocks duplicate invites to the same email.
+
 ### Create a new migration
 
 ```sh

@@ -21,6 +21,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { SkillSelector } from "@/components/SkillSelector";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ReferralDialog } from "@/components/ReferralDialog";
 import { useUserAnalytics, formatCount } from "@/hooks/useUserAnalytics";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
@@ -110,6 +111,7 @@ const Profile = () => {
   const [authEmail, setAuthEmail] = useState<string>("");
   const [newAuthEmail, setNewAuthEmail] = useState<string>("");
   const [emailUpdateLoading, setEmailUpdateLoading] = useState(false);
+  const [referralDialogOpen, setReferralDialogOpen] = useState(false);
   const [profileData, setProfileData] = useState<Profile>({
     firstName: '',
     lastName: '',
@@ -173,6 +175,15 @@ const Profile = () => {
     fetchConnections();
     fetchEndorsements();
     fetchRoleChangeRequest();
+  }, []);
+
+  useEffect(() => {
+    // Check if URL hash is #referral and open dialog
+    if (window.location.hash === '#referral') {
+      setReferralDialogOpen(true);
+      // Clear the hash
+      window.history.replaceState(null, '', window.location.pathname + window.location.search);
+    }
   }, []);
 
   useEffect(() => {
@@ -577,7 +588,6 @@ const Profile = () => {
     }
   };
 
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -764,8 +774,55 @@ const Profile = () => {
                 <p className="text-base sm:text-lg text-muted-foreground mt-1">
                   {profileData.biography}
                 </p>
+
+                <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
+                  <div className="flex items-center">
+                    <MapPin className="h-4 w-4 mr-1" />
+                    {profileData.location || 'Location not set'}
+                  </div>
+                  <div className="flex items-center">
+                    <Briefcase className="h-4 w-4 mr-1" />
+                    {profileData.degree || 'Degree not set'}
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    Joined {profileData.createdAt ? formatDateLong(profileData.createdAt) : 'Recently'}
+                  </div>
+                </div>
+
+                {/* Additional Profile Info */}
+                {(profileData.email || profileData.phone || profileData.university || profileData.sport) && (
+                  <div className="flex flex-wrap gap-4 mt-3 text-sm">
+                    {profileData.email && (
+                      <div className="flex items-center text-muted-foreground">
+                        <Mail className="h-4 w-4 mr-1" />
+                        Contact Email: {profileData.email}
+                      </div>
+                    )}
+                    {profileData.phone && (
+                      <div className="flex items-center text-muted-foreground">
+                        <Phone className="h-4 w-4 mr-1" />
+                        {profileData.phone}
+                      </div>
+                    )}
+                    {profileData.university && (
+                      <div className="flex items-center text-muted-foreground">
+                        <GraduationCap className="h-4 w-4 mr-1" />
+                        {profileData.university}
+                      </div>
+                    )}
+                    {profileData.sport && (
+                      <div className="flex items-center">
+                        <Badge variant="secondary" className="bg-gold/10 text-gold border-gold/20 flex items-center gap-1">
+                          <Trophy className="h-3 w-3" />
+                          {profileData.sport}
+                        </Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-col gap-2">
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="bg-gold hover:bg-gold-light text-navy">
@@ -1190,7 +1247,7 @@ const Profile = () => {
                   <Button
                     onClick={() => setRoleChangeDialogOpen(true)}
                     variant="outline"
-                    className="border-gold text-gold hover:bg-gold/10"
+                    className="bg-gold hover:bg-gold-light text-navy"
                   >
                     <UserCog className="h-4 w-4 mr-2" />
                     Change Role
@@ -1201,55 +1258,16 @@ const Profile = () => {
                     )}
                   </Button>
                 )}
+                <Button
+                  onClick={() => setReferralDialogOpen(true)}
+                  variant="outline"
+                  className="bg-gold hover:bg-gold-light text-navy"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Earn Rewards
+                </Button>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-1" />
-                {profileData.location || 'Location not set'}
-              </div>
-              <div className="flex items-center">
-                <Briefcase className="h-4 w-4 mr-1" />
-                {profileData.degree || 'Degree not set'}
-              </div>
-              <div className="flex items-center">
-                <Calendar className="h-4 w-4 mr-1" />
-                Joined {profileData.createdAt ? formatDateLong(profileData.createdAt) : 'Recently'}
-              </div>
-            </div>
-
-            {/* Additional Profile Info */}
-            {(profileData.email || profileData.phone || profileData.university || profileData.sport) && (
-              <div className="flex flex-wrap gap-4 mt-3 text-sm">
-                {profileData.email && (
-                  <div className="flex items-center text-muted-foreground">
-                    <Mail className="h-4 w-4 mr-1" />
-                    Contact Email: {profileData.email}
-                  </div>
-                )}
-                {profileData.phone && (
-                  <div className="flex items-center text-muted-foreground">
-                    <Phone className="h-4 w-4 mr-1" />
-                    {profileData.phone}
-                  </div>
-                )}
-                {profileData.university && (
-                  <div className="flex items-center text-muted-foreground">
-                    <GraduationCap className="h-4 w-4 mr-1" />
-                    {profileData.university}
-                  </div>
-                )}
-                {profileData.sport && (
-                  <div className="flex items-center">
-                    <Badge variant="secondary" className="bg-gold/10 text-gold border-gold/20 flex items-center gap-1">
-                      <Trophy className="h-3 w-3" />
-                      {profileData.sport}
-                    </Badge>
-                  </div>
-                )}
-              </div>
-            )}
 
             <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="text-center">
@@ -1485,6 +1503,18 @@ const Profile = () => {
                   </p>
                 </div>
               </div>
+              <div
+                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-secondary cursor-pointer"
+                onClick={() => setReferralDialogOpen(true)}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-gold" />
+                </div>
+                <div>
+                  <p className="font-medium text-sm">Refer a teammate</p>
+                  <p className="text-xs text-muted-foreground">Send an invite email</p>
+                </div>
+              </div>
             </div>
           </Card>
 
@@ -1588,6 +1618,9 @@ const Profile = () => {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Referral Dialog */}
+          <ReferralDialog open={referralDialogOpen} onOpenChange={setReferralDialogOpen} />
 
           {/* Resume Dialog */}
           <Dialog open={resumeDialogOpen} onOpenChange={setResumeDialogOpen}>

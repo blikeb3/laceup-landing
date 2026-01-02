@@ -349,6 +349,45 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          link: string | null
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message: string
+          metadata?: Json | null
+          read?: boolean | null
+          read_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          link?: string | null
+          message?: string
+          metadata?: Json | null
+          read?: boolean | null
+          read_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       opportunities: {
         Row: {
           application_deadline: string | null
@@ -718,7 +757,7 @@ export type Database = {
           biography: string | null
           contact_privacy: string | null
           created_at: string | null
-          degree: string | null
+          degrees: Json | null
           email: string
           first_name: string | null
           id: string
@@ -741,7 +780,7 @@ export type Database = {
           biography?: string | null
           contact_privacy?: string | null
           created_at?: string | null
-          degree?: string | null
+          degrees?: Json | null
           email: string
           first_name?: string | null
           id: string
@@ -764,7 +803,7 @@ export type Database = {
           biography?: string | null
           contact_privacy?: string | null
           created_at?: string | null
-          degree?: string | null
+          degrees?: Json | null
           email?: string
           first_name?: string | null
           id?: string
@@ -779,6 +818,66 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      referrals: {
+        Row: {
+          accepted_at: string | null
+          accepted_user_id: string | null
+          created_at: string
+          id: string
+          invited_name: string | null
+          message: string | null
+          provider_message_id: string | null
+          referred_email: string
+          referrer_user_id: string
+          sent_at: string | null
+          status: Database["public"]["Enums"]["referral_status"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          id?: string
+          invited_name?: string | null
+          message?: string | null
+          provider_message_id?: string | null
+          referred_email: string
+          referrer_user_id: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          token: string
+        }
+        Update: {
+          accepted_at?: string | null
+          accepted_user_id?: string | null
+          created_at?: string
+          id?: string
+          invited_name?: string | null
+          message?: string | null
+          provider_message_id?: string | null
+          referred_email?: string
+          referrer_user_id?: string
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["referral_status"]
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referrals_accepted_user_id_fkey"
+            columns: ["accepted_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referrals_referrer_user_id_fkey"
+            columns: ["referrer_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       resource_clicks: {
         Row: {
@@ -1040,6 +1139,34 @@ export type Database = {
           is_approved: boolean
         }[]
       }
+      create_notification: {
+        Args: {
+          p_link?: string
+          p_message: string
+          p_metadata?: Json
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: {
+          created_at: string | null
+          id: string
+          link: string | null
+          message: string
+          metadata: Json | null
+          read: boolean | null
+          read_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "notifications"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       get_conversation_summaries: {
         Args: { user_uuid: string }
         Returns: {
@@ -1081,6 +1208,7 @@ export type Database = {
       app_role: "admin" | "user" | "athlete" | "mentor" | "employer"
       badge_type: "FOUNDING_MEMBER"
       feedback_status: "NEW" | "REVIEWED" | "RESOLVED"
+      referral_status: "sent" | "bounced" | "accepted"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1211,6 +1339,7 @@ export const Constants = {
       app_role: ["admin", "user", "athlete", "mentor", "employer"],
       badge_type: ["FOUNDING_MEMBER"],
       feedback_status: ["NEW", "REVIEWED", "RESOLVED"],
+      referral_status: ["sent", "bounced", "accepted"],
     },
   },
 } as const

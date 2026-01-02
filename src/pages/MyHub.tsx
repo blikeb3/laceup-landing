@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, UserPlus, Target, UserCheck, UserMinus } from "lucide-react";
+import { Users, UserPlus, Target, UserCheck, UserMinus, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { ReferralDialog } from "@/components/ReferralDialog";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 import {
@@ -61,6 +62,7 @@ const MyHub = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [referralDialogOpen, setReferralDialogOpen] = useState(false);
   const { toast } = useToast();
 
   // Check if we should default to connections tab
@@ -362,15 +364,25 @@ const MyHub = () => {
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
-      <div className="mb-6 sm:mb-8">
-        <h1 className="text-2xl sm:text-4xl font-bold mb-2">Network</h1>
-        <p className="text-muted-foreground text-base sm:text-lg">
-          Connect with athletes and mentors who share your journey. <br />Looking for career opportunities? Check out the{" "}
-          <Link to="/opportunities" className="text-primary hover:underline font-medium">
-            Opportunities Board
-          </Link>
-          .
-        </p>
+      <div className="mb-6 sm:mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-4xl font-bold mb-2">Network</h1>
+          <p className="text-muted-foreground text-base sm:text-lg">
+            Connect with athletes and mentors who share your journey. <br />Looking for career opportunities? Check out the{" "}
+            <Link to="/opportunities" className="text-primary hover:underline font-medium">
+              Opportunities Board
+            </Link>
+            .
+          </p>
+        </div>
+        <Button
+          onClick={() => setReferralDialogOpen(true)}
+          size="lg"
+          className="gap-2 self-start sm:self-auto bg-gold hover:bg-gold-light text-navy"
+        >
+          <Mail className="h-5 w-5" />
+          Earn Rewards
+        </Button>
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
@@ -651,6 +663,8 @@ const MyHub = () => {
           )}
         </TabsContent>
       </Tabs>
+
+      <ReferralDialog open={referralDialogOpen} onOpenChange={setReferralDialogOpen} />
     </div>
   );
 };

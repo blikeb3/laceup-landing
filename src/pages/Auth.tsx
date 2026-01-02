@@ -29,8 +29,18 @@ const Auth = () => {
 
   // Determine default tab from query params (e.g., ?tab=signup)
   const tabParam = searchParams.get("tab");
-  const defaultTab = tabParam === "signup" ? "signup" : "signin";
+  const referralTokenParam = searchParams.get("ref");
+  const defaultTab = tabParam === "signup" || referralTokenParam ? "signup" : "signin";
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [referralToken, setReferralToken] = useState<string | null>(referralTokenParam);
+
+  useEffect(() => {
+    const token = searchParams.get("ref");
+    setReferralToken(token);
+    if (token) {
+      setActiveTab("signup");
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -150,6 +160,23 @@ const Auth = () => {
         }
 
         const wasAutoApproved = isAutoApproved === true;
+
+        if (referralToken) {
+          const { error: referralError } = await supabase.functions.invoke('referral-joined', {
+            body: { token: referralToken, userId: user.id, userEmail: email }
+          });
+
+          if (referralError) {
+            console.error("Error linking referral token:", referralError);
+            toast({
+              title: "Referral not linked",
+              description: "We could not attach your invite. Please retry from the referral link.",
+              variant: "destructive",
+            });
+          } else {
+            setReferralToken(null);
+          }
+        }
 
         toast({
           title: "Success!",
@@ -332,6 +359,9 @@ const Auth = () => {
         <CardHeader>
           <CardTitle>Welcome</CardTitle>
           <CardDescription>Sign in or create an account to continue</CardDescription>
+          {referralToken && (
+            <p className="text-xs text-emerald-600 mt-2">Referral link applied to this signup.</p>
+          )}
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
