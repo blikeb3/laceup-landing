@@ -272,8 +272,7 @@ export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConve
                             )}
                             {conversation.user_role && (
                                 <Badge
-                                    variant={conversation.user_role === 'employer' ? 'default' : conversation.user_role === 'mentor' ? 'secondary' : 'outline'}
-                                    className="text-xs"
+                                    className="text-xs bg-navy text-gold border-navy"
                                 >
                                     {conversation.user_role.charAt(0).toUpperCase() + conversation.user_role.slice(1)}
                                 </Badge>

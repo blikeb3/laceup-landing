@@ -482,8 +482,7 @@ const UserProfile = () => {
                   )}
                   {userRole && (
                     <Badge
-                      variant={userRole === 'employer' ? 'default' : userRole === 'mentor' ? 'secondary' : 'outline'}
-                      className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8"
+                      className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8 bg-navy text-gold border-navy"
                     >
                       {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                     </Badge>

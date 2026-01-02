@@ -547,8 +547,7 @@ const MyHub = () => {
                           )}
                           {connection.user_role && (
                             <Badge
-                              variant={connection.user_role === 'employer' ? 'default' : connection.user_role === 'mentor' ? 'secondary' : 'outline'}
-                              className="text-xs px-1.5 py-0.5"
+                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                             >
                               {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
                             </Badge>
@@ -695,8 +694,7 @@ const MyHub = () => {
                           )}
                           {profile.user_role && (
                             <Badge
-                              variant={profile.user_role === 'employer' ? 'default' : profile.user_role === 'mentor' ? 'secondary' : 'outline'}
-                              className="text-xs px-1.5 py-0.5"
+                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                             >
                               {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
                             </Badge>

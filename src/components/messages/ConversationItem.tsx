@@ -68,8 +68,7 @@ export const ConversationItem = ({ conversation, isSelected, onClick }: Conversa
                             )}
                             {conversation.user_role && (
                                 <Badge
-                                    variant={conversation.user_role === 'employer' ? 'default' : conversation.user_role === 'mentor' ? 'secondary' : 'outline'}
-                                    className="text-xs flex-shrink-0"
+                                    className="text-xs flex-shrink-0 bg-navy text-gold border-navy"
                                 >
                                     {conversation.user_role.charAt(0).toUpperCase() + conversation.user_role.slice(1)}
                                 </Badge>

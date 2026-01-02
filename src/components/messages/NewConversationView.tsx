@@ -345,8 +345,7 @@ export const NewConversationView = ({
                                         )}
                                         {connection.user_role && (
                                             <Badge
-                                                variant={connection.user_role === 'employer' ? 'default' : connection.user_role === 'mentor' ? 'secondary' : 'outline'}
-                                                className="text-[10px] px-1 py-0 flex-shrink-0"
+                                                className="text-[10px] px-1 py-0 flex-shrink-0 bg-navy text-gold border-navy"
                                             >
                                                 {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
                                             </Badge>
