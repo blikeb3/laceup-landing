@@ -39,12 +39,21 @@ interface JobExperience {
   description?: string;
 }
 
+interface Degree {
+  id?: string;
+  degree: string;
+  field: string;
+  institution: string;
+  year: string;
+}
+
 interface Profile {
   firstName: string;
   lastName: string;
   biography?: string | null;
   location?: string | null;
   degree?: string | null;
+  degrees?: Degree[] | null;
   about?: string | null;
   skills?: string[] | string | null;
   avatarUrl?: string | null;
@@ -118,6 +127,7 @@ const Profile = () => {
     biography: '',
     location: '',
     degree: '',
+    degrees: [],
     about: '',
     skills: [],
     avatarUrl: null,
@@ -156,6 +166,21 @@ const Profile = () => {
         return (b.startDate || "").localeCompare(a.startDate || "");
       }
       return endB.localeCompare(endA);
+    });
+  };
+
+  const sortDegrees = (degrees: Degree[] = []) => {
+    return [...degrees].sort((a, b) => {
+      // Extract year for comparison - handle ranges like "2020-2024" by taking the end year
+      const getYear = (yearStr: string) => {
+        if (!yearStr) return 0;
+        const match = yearStr.match(/(\d{4})(?:-\d{4})?$/);
+        return match ? parseInt(match[1]) : 0;
+      };
+      const yearA = getYear(a.year);
+      const yearB = getYear(b.year);
+      // Sort descending (most recent first)
+      return yearB - yearA;
     });
   };
 
@@ -222,12 +247,23 @@ const Profile = () => {
       .eq("user_id", user.id);
 
     if (!error && data) {
+      const rawDegrees = (data.degrees as unknown) || [];
+      const parsedDegrees: Degree[] = Array.isArray(rawDegrees)
+        ? rawDegrees.map((d: any) => ({
+          degree: d.degree || '',
+          field: d.field || '',
+          institution: d.institution || '',
+          year: d.year || '',
+          ...(d.id && { id: d.id }),
+        }))
+        : [];
+
       const profile = {
         firstName: data.first_name || '',
         lastName: data.last_name || '',
         biography: data.biography,
         location: data.location,
-        degree: data.degree,
+        degrees: parsedDegrees,
         about: data.about,
         skills: data.skills || [],
         avatarUrl: data.avatar_url,
@@ -657,7 +693,7 @@ const Profile = () => {
           last_name: formData.lastName,
           biography: formData.biography,
           location: formData.location,
-          degree: formData.degree,
+          degrees: (formData.degrees || []) as unknown as Json[],
           about: formData.about,
           skills: skillsArray,
           avatar_url: avatarUrl,
@@ -908,14 +944,103 @@ const Profile = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="degree">Degree/Field</Label>
-                        <Input
-                          id="degree"
-                          value={formData.degree || ''}
-                          onChange={(e) => setFormData({ ...formData, degree: e.target.value })}
-                          maxLength={100}
-                          placeholder="Sports Marketing"
-                        />
+                        <Label>Degrees</Label>
+                        <div className="space-y-3">
+                          {(formData.degrees || []).map((degree, idx) => (
+                            <Card key={idx} className="p-3 bg-muted border-border">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 space-y-2">
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-xs">Degree</Label>
+                                      <Input
+                                        value={degree.degree}
+                                        onChange={(e) => {
+                                          const newDegrees = [...(formData.degrees || [])];
+                                          newDegrees[idx].degree = e.target.value;
+                                          setFormData({ ...formData, degrees: newDegrees });
+                                        }}
+                                        placeholder="B.S., M.A., Ph.D., etc."
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">Field of Study</Label>
+                                      <Input
+                                        value={degree.field}
+                                        onChange={(e) => {
+                                          const newDegrees = [...(formData.degrees || [])];
+                                          newDegrees[idx].field = e.target.value;
+                                          setFormData({ ...formData, degrees: newDegrees });
+                                        }}
+                                        placeholder="Sports Marketing, Biology, etc."
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                      <Label className="text-xs">Institution</Label>
+                                      <Input
+                                        value={degree.institution}
+                                        onChange={(e) => {
+                                          const newDegrees = [...(formData.degrees || [])];
+                                          newDegrees[idx].institution = e.target.value;
+                                          setFormData({ ...formData, degrees: newDegrees });
+                                        }}
+                                        placeholder="University Name"
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                    <div>
+                                      <Label className="text-xs">Year</Label>
+                                      <Input
+                                        value={degree.year}
+                                        onChange={(e) => {
+                                          const newDegrees = [...(formData.degrees || [])];
+                                          newDegrees[idx].year = e.target.value;
+                                          setFormData({ ...formData, degrees: newDegrees });
+                                        }}
+                                        placeholder="2020, 2020-2024, etc."
+                                        className="text-sm"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newDegrees = (formData.degrees || []).filter((_, i) => i !== idx);
+                                    setFormData({ ...formData, degrees: newDegrees });
+                                  }}
+                                  className="text-red-600 hover:text-red-700"
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const newDegree: Degree = {
+                              degree: '',
+                              field: '',
+                              institution: '',
+                              year: ''
+                            };
+                            setFormData({ ...formData, degrees: [...(formData.degrees || []), newDegree] });
+                          }}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Degree
+                        </Button>
                       </div>
 
                       <div className="space-y-2">
@@ -1341,6 +1466,34 @@ const Profile = () => {
               <p className="text-foreground leading-relaxed whitespace-pre-line">
                 {profileData.academicAccomplishments}
               </p>
+            </Card>
+          )}
+
+          {profileData.degrees && profileData.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {sortDegrees(profileData.degrees).map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 

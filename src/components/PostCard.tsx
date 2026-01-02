@@ -34,6 +34,7 @@ import {
   RawPostComment
 } from "@/types/posts";
 import { renderPostContent } from "@/lib/htmlUtils";
+import { notifyPostLike, notifyPostComment } from "@/lib/notificationHelpers";
 
 interface PostCardProps {
   post: {
@@ -175,6 +176,24 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
 
         if (error) throw error;
         setLiked(true);
+
+        // Send notification to post author (don't notify if liking own post)
+        if (post.user_id !== currentUserId) {
+          // Get current user's name for the notification
+          const { data: currentUserProfile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', currentUserId)
+            .single();
+
+          if (currentUserProfile) {
+            const likerName = getDisplayName(
+              currentUserProfile.first_name,
+              currentUserProfile.last_name
+            );
+            await notifyPostLike(post.user_id, likerName, post.id);
+          }
+        }
       }
       onUpdate();
     } catch (error: unknown) {
@@ -221,6 +240,24 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
         title: "Comment added",
         description: "Your comment has been posted",
       });
+
+      // Send notification to post author (don't notify if commenting on own post)
+      if (post.user_id !== currentUserId) {
+        // Get current user's name for the notification
+        const { data: currentUserProfile } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', currentUserId)
+          .single();
+
+        if (currentUserProfile) {
+          const commenterName = getDisplayName(
+            currentUserProfile.first_name,
+            currentUserProfile.last_name
+          );
+          await notifyPostComment(post.user_id, commenterName, post.id);
+        }
+      }
     } catch (error: unknown) {
       console.error('Error adding comment:', error);
       let message = 'Failed to add comment';
