@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { Post, RawPost, PostInsert, UserBadge, PostComment } from "@/types/posts";
+import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
 
 interface SuggestedProfile {
   id: string;
@@ -342,6 +343,14 @@ const Home = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Check if they already have a connection to us (meaning they sent a request first)
+      const { data: existingConnection } = await supabase
+        .from("connections")
+        .select("id")
+        .eq("user_id", profileId)
+        .eq("connected_user_id", user.id)
+        .single();
+
       const { error } = await supabase
         .from("connections")
         .insert({
@@ -357,6 +366,19 @@ const Home = () => {
       });
 
       setSuggestions(prev => prev.filter(s => s.id !== profileId));
+
+      // Send notification
+      if (currentUser) {
+        const currentUserName = getFullName(currentUser.first_name, currentUser.last_name);
+
+        // If they already connected to us, notify them we accepted
+        // Otherwise, notify them of the new connection request
+        if (existingConnection) {
+          await notifyConnectionAccepted(profileId, currentUserName, user.id);
+        } else {
+          await notifyConnectionRequest(profileId, currentUserName, user.id);
+        }
+      }
     } catch (error) {
       toast({
         title: "Error",

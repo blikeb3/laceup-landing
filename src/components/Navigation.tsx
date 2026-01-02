@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserSearchBar } from "@/components/UserSearchBar";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
 export const Navigation = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -171,10 +172,8 @@ export const Navigation = () => {
           <div className="hidden xl:flex items-center space-x-1 gap-1 flex-shrink-0">
             <NavLinks />
 
-            {/* Icons */}
-            {/* <button className="p-2 rounded-lg hover:bg-white/10 transition-all">
-              <Bell className="h-5 w-5" />
-            </button> */}
+            {/* Notifications */}
+            <NotificationsDropdown />
 
             {/* Avatar */}
             <Link to="/profile" className="ml-2 w-9 h-9 rounded-full bg-gold text-navy flex items-center justify-center font-semibold text-sm hover:opacity-80 transition-opacity overflow-hidden">
