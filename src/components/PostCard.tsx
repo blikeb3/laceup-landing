@@ -506,8 +506,7 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
                 )}
                 {post.user_role && (
                   <Badge
-                    variant={post.user_role === 'employer' ? 'default' : post.user_role === 'mentor' ? 'secondary' : 'outline'}
-                    className="text-xs px-1.5 py-0.5"
+                    className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                   >
                     {post.user_role.charAt(0).toUpperCase() + post.user_role.slice(1)}
                   </Badge>

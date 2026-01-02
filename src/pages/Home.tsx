@@ -933,8 +933,7 @@ const Home = () => {
                   )}
                   {currentUserRole && (
                     <Badge
-                      variant={currentUserRole === 'employer' ? 'default' : currentUserRole === 'mentor' ? 'secondary' : 'outline'}
-                      className="text-xs px-1.5 py-0.5"
+                      className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                     >
                       {currentUserRole.charAt(0).toUpperCase() + currentUserRole.slice(1)}
                     </Badge>
@@ -1428,8 +1427,7 @@ const Home = () => {
                           )}
                           {profile.user_role && (
                             <Badge
-                              variant={profile.user_role === 'employer' ? 'default' : profile.user_role === 'mentor' ? 'secondary' : 'outline'}
-                              className="text-xs px-1 py-0 h-5"
+                              className="text-xs px-1 py-0 h-5 bg-navy text-gold border-navy"
                             >
                               {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
                             </Badge>

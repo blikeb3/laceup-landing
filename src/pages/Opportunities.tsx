@@ -1096,8 +1096,7 @@ const Opportunities = () => {
                               )}
                               {opportunity.posted_by_role && (
                                 <Badge
-                                  variant={opportunity.posted_by_role === 'employer' ? 'default' : opportunity.posted_by_role === 'mentor' ? 'secondary' : 'outline'}
-                                  className="text-xs px-1.5 py-0.5"
+                                  className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                                 >
                                   {opportunity.posted_by_role.charAt(0).toUpperCase() + opportunity.posted_by_role.slice(1)}
                                 </Badge>

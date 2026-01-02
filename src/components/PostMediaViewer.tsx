@@ -175,8 +175,7 @@ export const PostMediaViewer = ({
                   )}
                   {postAuthorRole && (
                     <Badge
-                      variant={postAuthorRole === 'employer' ? 'default' : postAuthorRole === 'mentor' ? 'secondary' : 'outline'}
-                      className="text-xs px-1 py-0"
+                      className="text-xs px-1 py-0 bg-navy text-gold border-navy"
                     >
                       {postAuthorRole.charAt(0).toUpperCase() + postAuthorRole.slice(1)}
                     </Badge>
@@ -287,8 +286,7 @@ export const PostMediaViewer = ({
                         )}
                         {comment.user_role && (
                           <Badge
-                            variant={comment.user_role === 'employer' ? 'default' : comment.user_role === 'mentor' ? 'secondary' : 'outline'}
-                            className="text-xs px-1 py-0"
+                            className="text-xs px-1 py-0 bg-navy text-gold border-navy"
                           >
                             {comment.user_role.charAt(0).toUpperCase() + comment.user_role.slice(1)}
                           </Badge>
