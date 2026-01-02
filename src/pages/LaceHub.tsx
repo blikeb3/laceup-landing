@@ -196,24 +196,24 @@ const LaceHub = () => {
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredResources.map((resource) => (
-            <Card key={resource.id} className="hover:shadow-lg transition-shadow overflow-hidden">
+            <Card key={resource.id} className="h-auto overflow-hidden transition-all duration-300 ease-out hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] flex flex-col">
               {resource.logo_url && (
                 <button
                   onClick={() => trackClick(resource.id, resource.url)}
-                  className="w-full h-32 bg-muted flex items-center justify-center p-4 cursor-pointer hover:bg-muted/80 transition-colors"
+                  className="w-full h-32 bg-muted flex items-center justify-center p-4 cursor-pointer hover:bg-muted/80 transition-all duration-200"
                 >
                   <img
                     src={resource.logo_url}
                     alt={`${resource.title} logo`}
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain transition-transform duration-200 hover:scale-105"
                   />
                 </button>
               )}
-              <CardHeader>
-                <div className="flex items-start justify-between mb-2">
+              <CardHeader className="pb-3">
+                <div className="flex items-start justify-between mb-1">
                   <div className="flex items-center gap-2">
                     {getContentIcon(resource.content_type)}
-                    <Badge variant="secondary" className="capitalize">
+                    <Badge variant="secondary" className="capitalize text-xs">
                       {resource.content_type.replace("_", " ")}
                     </Badge>
                     {isFileResource(resource.url) && getFileExtension(resource.url) && (
@@ -222,30 +222,30 @@ const LaceHub = () => {
                       </Badge>
                     )}
                   </div>
-                  <Badge variant="outline" className="capitalize">
+                  <Badge variant="outline" className="capitalize text-xs">
                     {getCategoryLabel(resource.category)}
                   </Badge>
                 </div>
-                <CardTitle className="line-clamp-2">{resource.title}</CardTitle>
-                <CardDescription>
+                <CardTitle className="line-clamp-2 text-lg">{resource.title}</CardTitle>
+                <CardDescription className="text-sm mt-1">
                   {resource.description}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="pt-4 pb-3 mt-auto">
                 <Button
                   onClick={() => trackClick(resource.id, resource.url)}
-                  className="w-full"
+                  className="w-full h-9 text-sm"
                   variant="default"
                 >
                   {isFileResource(resource.url) ? (
                     <>
                       <Download className="h-4 w-4 mr-2" />
-                      Download a Copy
+                      Download
                     </>
                   ) : (
                     <>
                       <ExternalLink className="h-4 w-4 mr-2" />
-                      View Resource
+                      View
                     </>
                   )}
                 </Button>
