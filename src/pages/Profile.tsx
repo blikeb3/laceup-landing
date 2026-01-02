@@ -817,17 +817,25 @@ const Profile = () => {
                     {profileData.location || 'Location not set'}
                   </div>
                   <div className="flex items-center">
-                    <Briefcase className="h-4 w-4 mr-1" />
-                    {profileData.degree || 'Degree not set'}
+                    <GraduationCap className="h-4 w-4 mr-1" />
+                    {profileData.university}
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-1" />
                     Joined {profileData.createdAt ? formatDateLong(profileData.createdAt) : 'Recently'}
                   </div>
+                  {profileData.sport && (
+                    <div className="flex items-center">
+                      <Badge variant="secondary" className="bg-gold/10 text-gold border-gold/20 flex items-center gap-1">
+                        <Trophy className="h-3 w-3" />
+                        {profileData.sport}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
 
-                {/* Additional Profile Info */}
-                {(profileData.email || profileData.phone || profileData.university || profileData.sport) && (
+                {/* Contact Information */}
+                {(profileData.email || profileData.phone) && (
                   <div className="flex flex-wrap gap-4 mt-3 text-sm">
                     {profileData.email && (
                       <div className="flex items-center text-muted-foreground">
@@ -839,20 +847,6 @@ const Profile = () => {
                       <div className="flex items-center text-muted-foreground">
                         <Phone className="h-4 w-4 mr-1" />
                         {profileData.phone}
-                      </div>
-                    )}
-                    {profileData.university && (
-                      <div className="flex items-center text-muted-foreground">
-                        <GraduationCap className="h-4 w-4 mr-1" />
-                        {profileData.university}
-                      </div>
-                    )}
-                    {profileData.sport && (
-                      <div className="flex items-center">
-                        <Badge variant="secondary" className="bg-gold/10 text-gold border-gold/20 flex items-center gap-1">
-                          <Trophy className="h-3 w-3" />
-                          {profileData.sport}
-                        </Badge>
                       </div>
                     )}
                   </div>
