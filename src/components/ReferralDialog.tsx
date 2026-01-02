@@ -161,10 +161,17 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] sm:w-full sm:max-w-5xl p-0">
-        <div className="flex h-[600px]">
+      <DialogContent className="w-[95vw] sm:w-full sm:max-w-5xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Earn Rewards</DialogTitle>
+          <DialogDescription>
+            Send an invite email to your teammate to earn rewards when they join!
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="flex flex-col sm:flex-row h-auto sm:h-auto -mx-6">
           {/* Left Column */}
-          <div className="w-1/2 bg-muted/50 p-8 flex flex-col items-center justify-start border-r pt-12">
+          <div className="w-full sm:w-1/2 bg-muted/50 p-8 flex flex-col items-center justify-start sm:border-r pt-12">
             <img src="/laceup-logo-with-branding.png" alt="LaceUP - Wealth Beyond The Field" className="h-72 w-auto mb-8" />
             
             {teamBuilderBadge && (
@@ -188,14 +195,8 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
           </div>
 
           {/* Right Column */}
-          <div className="w-1/2 p-8 flex flex-col justify-between">
+          <div className="w-full sm:w-1/2 p-8 flex flex-col justify-between">
             <div>
-              <DialogHeader className="text-left mb-6 p-0">
-                <DialogTitle>Earn Rewards</DialogTitle>
-                <DialogDescription>
-                  Send an invite email to your teammate to earn rewards when they join!
-                </DialogDescription>
-              </DialogHeader>
               
               {/* Horizontal Progress Bar */}
               <div className="mb-8 space-y-3">
