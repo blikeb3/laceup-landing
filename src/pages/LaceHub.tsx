@@ -227,7 +227,7 @@ const LaceHub = () => {
                   </Badge>
                 </div>
                 <CardTitle className="line-clamp-2">{resource.title}</CardTitle>
-                <CardDescription className="line-clamp-3">
+                <CardDescription>
                   {resource.description}
                 </CardDescription>
               </CardHeader>
