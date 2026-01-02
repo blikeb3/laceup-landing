@@ -143,6 +143,29 @@ const MyHub = () => {
         return { ...profile, score };
       });
 
+      // Check for accepted referrals and boost scores
+      const profileIds = scored.map(p => p.id);
+      const { data: referralsData } = await supabase
+        .from('referrals')
+        .select('referrer_user_id, id')
+        .in('referrer_user_id', profileIds)
+        .eq('status', 'accepted');
+
+      // Count accepted referrals per user
+      const referralCounts = new Map<string, number>();
+      referralsData?.forEach(referral => {
+        const count = referralCounts.get(referral.referrer_user_id) || 0;
+        referralCounts.set(referral.referrer_user_id, count + 1);
+      });
+
+      // Boost score for users with at least 1 accepted referral
+      scored.forEach(profile => {
+        const acceptedReferrals = referralCounts.get(profile.id) || 0;
+        if (acceptedReferrals > 0) {
+          profile.score += 3; // Boost score by 3 for having accepted referrals
+        }
+      });
+
       // Sort by score and take top suggestions
       scored.sort((a, b) => b.score - a.score);
       const topSuggestions = scored.slice(0, 12);
