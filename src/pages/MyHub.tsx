@@ -6,12 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, UserPlus, Target, UserCheck, UserMinus, Mail } from "lucide-react";
+import { Users, UserPlus, Target, UserCheck, UserMinus, Mail, Search, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ReferralDialog } from "@/components/ReferralDialog";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { fetchMultipleUserRoles } from "@/lib/roleUtils";
+import { Input } from "@/components/ui/input";
 import {
   Tooltip,
   TooltipContent,
@@ -64,10 +65,16 @@ const MyHub = () => {
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [referralDialogOpen, setReferralDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [suggestionsSearchQuery, setSuggestionsSearchQuery] = useState<string>("");
   const { toast } = useToast();
 
+  // Check URL parameters for search query
+  const searchParams = new URLSearchParams(location.search);
+  const urlSearchQuery = searchParams.get('search');
+  
   // Check if we should default to connections tab
-  const defaultTab = location.hash === "#connections" ? "connections" : "suggestions";
+  const defaultTab = (location.hash === "#connections" || urlSearchQuery) ? "connections" : "suggestions";
 
   const loadHubData = useCallback(async () => {
     try {
@@ -100,6 +107,13 @@ const MyHub = () => {
   useEffect(() => {
     loadHubData();
   }, [loadHubData]);
+
+  // Handle URL search parameter
+  useEffect(() => {
+    if (urlSearchQuery) {
+      setSearchQuery(urlSearchQuery);
+    }
+  }, [urlSearchQuery]);
 
   const fetchSuggestions = async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }) => {
     try {
@@ -456,17 +470,61 @@ const MyHub = () => {
         </TabsList>
 
         <TabsContent value="connections" className="space-y-6">
-          {connections.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">You don't have any connections yet.</p>
-                <p className="text-sm text-muted-foreground mt-2">Check out the Suggested Connections tab to find people to connect with!</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {connections.map((connection) => (
+          {/* Search Bar for Connections */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search your connections..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSearchQuery("")}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {(() => {
+            const filteredConnections = connections.filter(connection => {
+              if (!searchQuery.trim()) return true;
+              const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
+              const search = searchQuery.toLowerCase();
+              return fullName.includes(search) || 
+                     connection.university?.toLowerCase().includes(search) ||
+                     connection.sport?.toLowerCase().includes(search);
+            });
+
+            return filteredConnections.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  {connections.length === 0 ? (
+                    <>
+                      <p className="text-muted-foreground">You don't have any connections yet.</p>
+                      <p className="text-sm text-muted-foreground mt-2">Check out the Suggested Connections tab to find people to connect with!</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground">No connections found for "{searchQuery}"</p>
+                      <p className="text-sm text-muted-foreground mt-2">Try adjusting your search terms.</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredConnections.map((connection) => (
                 <Card key={connection.id}>
                   <CardHeader>
                     <Link to={`/profile/${connection.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
@@ -557,21 +615,64 @@ const MyHub = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="suggestions" className="space-y-6">
-          {suggestions.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground">No suggestions available at the moment.</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {suggestions.map((profile) => (
+          {/* Search Bar for Suggestions */}
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search suggested connections..."
+                value={suggestionsSearchQuery}
+                onChange={(e) => setSuggestionsSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            {suggestionsSearchQuery && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSuggestionsSearchQuery("")}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
+
+          {(() => {
+            const filteredSuggestions = suggestions.filter(profile => {
+              if (!suggestionsSearchQuery.trim()) return true;
+              const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
+              const search = suggestionsSearchQuery.toLowerCase();
+              return fullName.includes(search) || 
+                     profile.university?.toLowerCase().includes(search) ||
+                     profile.sport?.toLowerCase().includes(search);
+            });
+
+            return filteredSuggestions.length === 0 ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  {suggestions.length === 0 ? (
+                    <p className="text-muted-foreground">No suggestions available at the moment.</p>
+                  ) : (
+                    <>
+                      <p className="text-muted-foreground">No suggestions found for "{suggestionsSearchQuery}"</p>
+                      <p className="text-sm text-muted-foreground mt-2">Try adjusting your search terms.</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {filteredSuggestions.map((profile) => (
                 <Card key={profile.id}>
                   <CardHeader>
                     <Link to={`/profile/${profile.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
@@ -672,8 +773,9 @@ const MyHub = () => {
                   </CardContent>
                 </Card>
               ))}
-            </div>
-          )}
+              </div>
+            );
+          })()}
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-6">

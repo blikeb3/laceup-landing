@@ -77,14 +77,14 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
 
     // Handle keyboard navigation
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (!isOpen || results.length === 0) return;
-
         switch (e.key) {
             case "ArrowDown":
+                if (!isOpen || results.length === 0) return;
                 e.preventDefault();
                 setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
                 break;
             case "ArrowUp":
+                if (!isOpen || results.length === 0) return;
                 e.preventDefault();
                 setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
                 break;
@@ -92,6 +92,16 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                 e.preventDefault();
                 if (selectedIndex >= 0 && results[selectedIndex]) {
                     handleSelectUser(results[selectedIndex]);
+                } else if (results.length === 1) {
+                    // If only one result, go directly to that user's profile
+                    handleSelectUser(results[0]);
+                } else if (query.trim().length >= 2) {
+                    // Navigate to Network tab with search query
+                    navigate(`/my-hub?search=${encodeURIComponent(query.trim())}`);
+                    setQuery("");
+                    setResults([]);
+                    setIsOpen(false);
+                    setSelectedIndex(-1);
                 }
                 break;
             case "Escape":
