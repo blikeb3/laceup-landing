@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
+import { ArrowRight } from "lucide-react";
+
 
 export function Hero() {
   const navigate = useNavigate();
@@ -14,17 +16,25 @@ export function Hero() {
         <div className="max-w-4xl mx-auto text-center space-y-8">
           <div className="space-y-6">
             <h1 className="text-4xl lg:text-5xl xl:text-6xl text-white leading-tight">
-              Life beyond the game <span className="text-[#E8B555]">starts here</span>
+              Your Next Chapter <span className="text-[#E8B555]">starts here</span>
             </h1>
             <p className="text-xl lg:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-              Built exclusively for athletes transitioning from their sport into their careers. Connecting talent with mentors, alumni, and real professional opportunities.
+              Join A community built to help athletes transition from competition to career
             </p>
           </div>
 
-          <div className="flex justify-center pt-4">
+          <div className="flex justify-center gap-4 pt-4">
+            <Button
+          size="lg"
+          className="bg-[#E8B555] text-[#0A2849] hover:bg-[#F2C877] text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
+          onClick={() => navigate('/auth?tab=signup')}
+        >
+          Join Now
+          <ArrowRight className="ml-2 w-6 h-6" />
+        </Button>
             <Button
               size="lg"
-              className="text-lg px-10 py-7 bg-[#E8B555] text-[#0A2849] hover:bg-[#F2C877] shadow-xl hover:shadow-2xl transition-all duration-300"
+              className="bg-[#E8B555] text-[#0A2849] hover:bg-[#F2C877] text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
               onClick={() => scrollToSection('why-we-exist')}
             >
               Learn More
