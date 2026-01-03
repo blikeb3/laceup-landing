@@ -25,6 +25,12 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-10">
             <button
+              onClick={() => scrollToSection('why-we-exist')}
+              className="text-[#0A2849]/70 hover:text-[#0A2849] transition-colors"
+            >
+              Why We Exist
+            </button>
+            <button
               onClick={() => scrollToSection('how-it-works')}
               className="text-[#0A2849]/70 hover:text-[#0A2849] transition-colors"
             >
@@ -68,6 +74,12 @@ export function Header() {
         {mobileMenuOpen && (
           <nav className="md:hidden py-4 border-t border-[#0A2849]/10">
             <div className="flex flex-col space-y-4">
+              <button
+                onClick={() => scrollToSection('why-we-exist')}
+                className="text-left px-4 py-2 text-muted-foreground hover:text-[#0A2849] transition-colors"
+              >
+                Why We Exist
+              </button>
               <button
                 onClick={() => scrollToSection('how-it-works')}
                 className="text-left px-4 py-2 text-muted-foreground hover:text-[#0A2849] transition-colors"
