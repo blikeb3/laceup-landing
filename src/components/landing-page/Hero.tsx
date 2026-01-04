@@ -19,7 +19,7 @@ export function Hero() {
               Your Next Chapter <span className="text-[#E8B555]">starts here</span>
             </h1>
             <p className="text-xl lg:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-              Join A community built to help athletes transition from competition to career
+              Join a community built to help athletes transition from competition to career
             </p>
           </div>
 

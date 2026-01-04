@@ -30,7 +30,7 @@ export function HowItWorks() {
     <div className="py-20 bg-[#f8fafc]" id="how-it-works">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-16">
-          <h2 className="text-3xl lg:text-4xl mb-4 text-[#0A2849]">How LaceUp Works</h2>
+          <h2 className="text-3xl lg:text-4xl mb-4 text-[#0A2849]">How LaceUP Works</h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Three simple steps to start your professional journey
           </p>

@@ -40,7 +40,7 @@ export function Benefits() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection>
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl mb-4 text-[#0A2849]">The LaceUp Advantage</h2>
+            <h2 className="text-3xl lg:text-4xl mb-4 text-[#0A2849]">The LaceUP Advantage</h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Built for athletes, by athletes
             </p>
