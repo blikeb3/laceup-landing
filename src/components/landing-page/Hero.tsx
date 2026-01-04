@@ -23,7 +23,7 @@ export function Hero() {
             </p>
           </div>
 
-          <div className="flex justify-center gap-4 pt-4">
+          <div className="flex flex-col justify-center items-center gap-4 pt-4">
             <Button
           size="lg"
           className="bg-[#E8B555] text-[#0A2849] hover:bg-[#F2C877] text-xl px-12 py-7 shadow-2xl hover:shadow-3xl transition-all duration-300 hover:scale-105"
