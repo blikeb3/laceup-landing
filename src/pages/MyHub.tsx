@@ -137,7 +137,7 @@ const MyHub = () => {
         query = query.not("id", "in", `(${connectedIds.join(",")})`);
       }
 
-      const { data, error } = await query.limit(20);
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -182,7 +182,7 @@ const MyHub = () => {
 
       // Sort by score and take top suggestions
       scored.sort((a, b) => b.score - a.score);
-      const topSuggestions = scored.slice(0, 12);
+      const topSuggestions = scored;
 
       // Fetch roles and badges for suggestions
       const suggestionIds = topSuggestions.map(s => s.id);
