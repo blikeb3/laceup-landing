@@ -472,14 +472,10 @@ const UserProfile = () => {
                 {/* Name + Roles + Badges on same line */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <h1 className="text-2xl sm:text-3xl font-heading font-bold">{getDisplayName(profile.first_name, profile.last_name)}</h1>
-                  {userIsAdmin && (
-                    <Badge
-                      variant="destructive"
-                      className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8"
-                    >
-                      Admin
-                    </Badge>
-                  )}
+                 
+                  {/* Admin badge hidden from users */}
+                  {null}
+
                   {userRole && (
                     <Badge
                       className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8 bg-navy text-gold border-navy"
