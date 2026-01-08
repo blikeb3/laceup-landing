@@ -14,6 +14,7 @@ import { getDisplayName, getInitials } from "@/lib/nameUtils";
 import { formatDateLong } from "@/lib/dateFormat";
 import { EndorsementDialog } from "@/components/EndorsementDialog";
 import { formatDistanceToNow } from "date-fns";
+import laceupLogo from "@/assets/laceupLogo.png";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -460,11 +461,20 @@ const UserProfile = () => {
       <Card className="p-4 sm:p-8 mb-6 animate-slide-up">
         <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
           <Avatar className="w-24 h-24 sm:w-32 sm:h-32">
-            <AvatarImage src={profile.avatar_url || undefined} alt={getDisplayName(profile.first_name, profile.last_name)} />
-            <AvatarFallback className="bg-gold text-navy text-3xl sm:text-5xl font-bold">
-              {getInitials(profile.first_name, profile.last_name)}
+            <AvatarImage
+              src={profile.avatar_url || undefined}
+              alt={getDisplayName(profile.first_name, profile.last_name)}
+            />
+            <AvatarFallback className="p-0 overflow-hidden">
+              <img
+                src={laceupLogo}
+                alt="LaceUP logo"
+                className="h-full w-full object-contain"
+                draggable={false}
+              />
             </AvatarFallback>
           </Avatar>
+
 
           <div className="flex-1 text-center sm:text-left">
             <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-3">
@@ -472,7 +482,7 @@ const UserProfile = () => {
                 {/* Name + Roles + Badges on same line */}
                 <div className="flex flex-wrap items-center gap-2 mb-4">
                   <h1 className="text-2xl sm:text-3xl font-heading font-bold">{getDisplayName(profile.first_name, profile.last_name)}</h1>
-                 
+
                   {/* Admin badge hidden from users */}
                   {null}
 
@@ -769,11 +779,13 @@ const UserProfile = () => {
                               endorsement.profiles?.last_name
                             )}
                           />
-                          <AvatarFallback className="bg-gold text-navy text-xs">
-                            {getInitials(
-                              endorsement.profiles?.first_name,
-                              endorsement.profiles?.last_name
-                            )}
+                          <AvatarFallback className="p-0 overflow-hidden">
+                            <img
+                              src={laceupLogo}
+                              alt="LaceUP logo"
+                              className="h-full w-full object-contain"
+                              draggable={false}
+                            />
                           </AvatarFallback>
                         </Avatar>
                       </Link>
@@ -832,9 +844,15 @@ const UserProfile = () => {
                         src={connection.avatar_url || undefined}
                         alt={getDisplayName(connection.first_name, connection.last_name)}
                       />
-                      <AvatarFallback className="bg-gold text-navy text-sm font-bold">
-                        {getInitials(connection.first_name, connection.last_name)}
+                      <AvatarFallback className="p-0 overflow-hidden">
+                        <img
+                          src={laceupLogo}
+                          alt="LaceUP logo"
+                          className="h-full w-full object-contain"
+                          draggable={false}
+                        />
                       </AvatarFallback>
+
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-sm hover:text-gold transition-colors truncate">
