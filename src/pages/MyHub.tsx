@@ -59,6 +59,9 @@ interface Group {
 
 const MyHub = () => {
   const location = useLocation();
+  type RoleFilter = "all" | "athlete" | "mentor" | "employer";
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");  
+
   const [suggestions, setSuggestions] = useState<Profile[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -472,38 +475,65 @@ const MyHub = () => {
         <TabsContent value="connections" className="space-y-6">
           {/* Search Bar for Connections */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search your connections..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSearchQuery("")}
-                className="gap-2"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </Button>
-            )}
-          </div>
+  <div className="relative flex-1 w-full">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <Input
+      type="text"
+      placeholder="Search your connections..."
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      className="pl-9"
+    />
+  </div>
+
+  <select
+    value={roleFilter}
+    onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+    className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
+  >
+    <option value="all">All</option>
+    <option value="athlete">Athletes</option>
+    <option value="mentor">Mentors</option>
+    <option value="employer">Employers</option>
+  </select>
+
+  {(searchQuery || roleFilter !== "all") && (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => {
+        setSearchQuery("");
+        setRoleFilter("all");
+      }}
+      className="gap-2"
+    >
+      <X className="h-4 w-4" />
+      Clear
+    </Button>
+  )}
+</div>
 
           {(() => {
-            const filteredConnections = connections.filter(connection => {
-              if (!searchQuery.trim()) return true;
-              const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
-              const search = searchQuery.toLowerCase();
-              return fullName.includes(search) || 
-                     connection.university?.toLowerCase().includes(search) ||
-                     connection.sport?.toLowerCase().includes(search);
-            });
+            const filteredConnections = connections.filter((connection) => {
+  const search = searchQuery.trim().toLowerCase();
+
+  // Role filtering
+  if (roleFilter !== "all") {
+    const role = (connection.user_role ?? "").toLowerCase();
+    if (role !== roleFilter) return false;
+  }
+
+  // Text filtering
+  if (!search) return true;
+
+  const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
+  return (
+    fullName.includes(search) ||
+    (connection.university ?? "").toLowerCase().includes(search) ||
+    (connection.sport ?? "").toLowerCase().includes(search)
+  );
+});
+
 
             return filteredConnections.length === 0 ? (
               <Card>
@@ -622,38 +652,66 @@ const MyHub = () => {
         <TabsContent value="suggestions" className="space-y-6">
           {/* Search Bar for Suggestions */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-            <div className="relative flex-1 w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search suggested connections..."
-                value={suggestionsSearchQuery}
-                onChange={(e) => setSuggestionsSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            {suggestionsSearchQuery && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSuggestionsSearchQuery("")}
-                className="gap-2"
-              >
-                <X className="h-4 w-4" />
-                Clear
-              </Button>
-            )}
-          </div>
+  <div className="relative flex-1 w-full">
+    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+    <Input
+      type="text"
+      placeholder="Search suggested connections..."
+      value={suggestionsSearchQuery}
+      onChange={(e) => setSuggestionsSearchQuery(e.target.value)}
+      className="pl-9"
+    />
+  </div>
+
+  <select
+    value={roleFilter}
+    onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+    className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
+  >
+    <option value="all">All</option>
+    <option value="athlete">Athletes</option>
+    <option value="mentor">Mentors</option>
+    <option value="employer">Employers</option>
+  </select>
+
+  {(suggestionsSearchQuery || roleFilter !== "all") && (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={() => {
+        setSuggestionsSearchQuery("");
+        setRoleFilter("all");
+      }}
+      className="gap-2"
+    >
+      <X className="h-4 w-4" />
+      Clear
+    </Button>
+  )}
+</div>
+
 
           {(() => {
-            const filteredSuggestions = suggestions.filter(profile => {
-              if (!suggestionsSearchQuery.trim()) return true;
-              const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
-              const search = suggestionsSearchQuery.toLowerCase();
-              return fullName.includes(search) || 
-                     profile.university?.toLowerCase().includes(search) ||
-                     profile.sport?.toLowerCase().includes(search);
-            });
+            const filteredSuggestions = suggestions.filter((profile) => {
+  const search = suggestionsSearchQuery.trim().toLowerCase();
+
+  // Role filtering
+  if (roleFilter !== "all") {
+    const role = (profile.user_role ?? "").toLowerCase();
+    if (role !== roleFilter) return false;
+  }
+
+  // Text filtering
+  if (!search) return true;
+
+  const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
+  return (
+    fullName.includes(search) ||
+    (profile.university ?? "").toLowerCase().includes(search) ||
+    (profile.sport ?? "").toLowerCase().includes(search)
+  );
+});
+
 
             return filteredSuggestions.length === 0 ? (
               <Card>
