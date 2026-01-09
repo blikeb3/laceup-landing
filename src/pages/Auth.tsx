@@ -459,17 +459,19 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="signup-sport">Sport <span style={{ color: "red" }}>*</span></Label>
-                  <Input
-                    id="signup-sport"
-                    type="text"
-                    placeholder="e.g., Basketball, Soccer, Track"
-                    value={sport}
-                    onChange={(e) => setSport(e.target.value)}
-                    required
-                  />
-                </div>
+                {userType === "athlete" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-sport">Sport <span style={{ color: "red" }}>*</span></Label>
+                    <Input
+                      id="signup-sport"
+                      type="text"
+                      placeholder="e.g., Basketball, Soccer, Track"
+                      value={sport}
+                      onChange={(e) => setSport(e.target.value)}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="signup-usertype">I am a <span style={{ color: "red" }}>*</span></Label>
                   <div className="flex gap-2">

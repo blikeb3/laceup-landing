@@ -27,7 +27,7 @@ export const signUpSchema = z.object({
     lastName: z.string().min(1, "Last name is required").max(50, "Last name must not exceed 50 characters"),
     phone: z.string().regex(/^\+?[\d\s\-()]+$/, "Invalid phone number format").optional().or(z.literal("")),
     university: z.string().min(2, "University name must be at least 2 characters").max(100, "University name must not exceed 100 characters"),
-    sport: z.string().min(2, "Sport must be at least 2 characters").max(50, "Sport must not exceed 50 characters"),
+    sport: z.string().min(2, "Sport must be at least 2 characters").max(50, "Sport must not exceed 50 characters").optional().or(z.literal("")),
     userType: z.enum(["athlete", "mentor", "employer"]),
 }).refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
