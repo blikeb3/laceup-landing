@@ -557,31 +557,22 @@ const Admin = () => {
       const { data: { user: adminUser } } = await supabase.auth.getUser();
       if (!adminUser) throw new Error("Not authenticated");
 
-      // Update the request status
-      const { error: updateError } = await supabase
-        .from("role_change_requests")
-        .update({
-          status: decision,
-          reviewed_by: adminUser.id,
-          reviewed_at: new Date().toISOString()
-        })
-        .eq("id", requestId);
+      // Update the request status using a database function
+      // This function handles the RLS policy and role updates
+      const { data, error: updateError } = await supabase.rpc('approve_role_change_request', {
+        p_request_id: requestId,
+        p_admin_id: adminUser.id,
+        p_decision: decision
+      });
 
       if (updateError) throw updateError;
 
-      // If approved, update the user's base role (athlete/mentor/employer only)
-      if (decision === 'approved') {
-        // Use the database function to update the role (bypasses RLS)
-        const { error: roleError } = await supabase.rpc('assign_user_role', {
-          p_user_id: userId,
-          p_role: requestedRole
-        });
-
-        if (roleError) {
-          console.error("Error updating role:", roleError);
-          throw roleError;
-        }
+      if (data && data[0] && !data[0].success) {
+        throw new Error(data[0].message);
       }
+
+      // The function handles the role update if approved, so we don't need to call assign_user_role
+      // separately. The following code is kept for reference but is now handled by the function.
 
       toast({
         title: decision === 'approved' ? "Request Approved" : "Request Denied",
