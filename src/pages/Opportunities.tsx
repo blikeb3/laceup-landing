@@ -121,6 +121,7 @@ const Opportunities = () => {
   });
   const [showPostDialog, setShowPostDialog] = useState(false);
   const [editingOpportunityId, setEditingOpportunityId] = useState<string | null>(null);
+  const [viewingDetailsId, setViewingDetailsId] = useState<string | null>(null);
   const [applyingTo, setApplyingTo] = useState<string | null>(null);
   const [coverLetter, setCoverLetter] = useState("");
   const { toast } = useToast();
@@ -826,15 +827,15 @@ const Opportunities = () => {
             </Card>
 
             {/* Opportunities List */}
-            <div className="space-y-4">
-              {filteredOpportunities.length === 0 ? (
-                <Card className="p-8 text-center bg-card border-border">
-                  <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-                  <p className="text-muted-foreground">No opportunities found matching your filters.</p>
-                </Card>
-              ) : (
-                filteredOpportunities.map((opportunity) => (
-                  <Card key={opportunity.id} className="bg-card border-border hover:border-gold transition-colors">
+            {filteredOpportunities.length === 0 ? (
+              <Card className="p-8 text-center bg-card border-border">
+                <Briefcase className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">No opportunities found matching your filters.</p>
+              </Card>
+            ) : (
+              <div className="grid gap-6 md:grid-cols-2">
+                {filteredOpportunities.map((opportunity) => (
+                  <Card key={opportunity.id} className="bg-card border-border hover:border-gold transition-colors cursor-pointer" onClick={() => setViewingDetailsId(opportunity.id)}>
                     <CardHeader>
                       <div className="flex items-start justify-between">
                         <div className="flex items-start gap-3">
@@ -874,78 +875,20 @@ const Opportunities = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {/* Only show Express Interest if not the creator and user is an athlete */}
+                          {/* Apply button on card */}
                           {canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
-                            <Dialog open={applyingTo === opportunity.id} onOpenChange={(open) => !open && setApplyingTo(null)}>
-                              <DialogTrigger asChild>
-                                <Button
-                                  variant={hasApplied(opportunity.id) ? "outline" : "default"}
-                                  className={hasApplied(opportunity.id) ? "" : "bg-gold hover:bg-gold/90 text-navy"}
-                                  disabled={hasApplied(opportunity.id)}
-                                  onClick={() => setApplyingTo(opportunity.id)}
-                                >
-                                  {hasApplied(opportunity.id) ? "Applied" : "Express Interest"}
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto bg-background border-border">
-                                <DialogHeader>
-                                  <DialogTitle>Apply to {opportunity.title}</DialogTitle>
-                                  <DialogDescription>
-                                    Submit your application for this {opportunity.type}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="cover-letter">Cover Letter (Optional)</Label>
-                                    <Textarea
-                                      id="cover-letter"
-                                      value={coverLetter}
-                                      onChange={(e) => setCoverLetter(e.target.value)}
-                                      placeholder="Tell them why you're interested..."
-                                      rows={6}
-                                    />
-                                  </div>
-                                  <div className="space-y-2">
-                                    <Label>Resume</Label>
-                                    {resumeUrl ? (
-                                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                        <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">View My Resume</a>
-                                      </div>
-                                    ) : (
-                                      <div className="flex flex-col gap-2">
-                                        <input
-                                          id="resume-upload"
-                                          type="file"
-                                          accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                          ref={resumeInputRef}
-                                          onChange={handleResumeSelect}
-                                          className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-muted file:text-navy hover:file:bg-muted/80"
-                                          disabled={resumeUploading}
-                                        />
-                                        {resumeFile && (
-                                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                            <span>{resumeFile.name}</span>
-                                            <Button size="sm" variant="outline" onClick={clearResumeSelection} type="button">Remove</Button>
-                                          </div>
-                                        )}
-                                        <div className="text-xs text-muted-foreground">No resume uploaded in your profile. Upload to use for this and future applications.</div>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <Button
-                                    onClick={() => handleApply(opportunity.id)}
-                                    className="w-full bg-gold hover:bg-gold/90 text-navy"
-                                    disabled={resumeUploading}
-                                  >
-                                    {resumeUploading ? (
-                                      <LoadingSpinner text="Uploading..." />
-                                    ) : (
-                                      <><Send className="h-4 w-4 mr-2" />Submit Application</>
-                                    )}
-                                  </Button>
-                                </div>
-                              </DialogContent>
-                            </Dialog>
+                            <Button
+                              size="sm"
+                              variant={hasApplied(opportunity.id) ? "outline" : "default"}
+                              className={hasApplied(opportunity.id) ? "" : "bg-gold hover:bg-gold/90 text-navy"}
+                              disabled={hasApplied(opportunity.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setApplyingTo(opportunity.id);
+                              }}
+                            >
+                              {hasApplied(opportunity.id) ? "Applied" : "Apply"}
+                            </Button>
                           )}
 
                           {!canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
@@ -1065,21 +1008,6 @@ const Opportunities = () => {
                         </div>
                       )}
 
-                      <CardDescription className="text-sm leading-relaxed">
-                        {opportunity.description}
-                      </CardDescription>
-
-                      {opportunity.requirements && opportunity.requirements.length > 0 && (
-                        <div>
-                          <p className="text-sm font-semibold mb-2">Requirements:</p>
-                          <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
-                            {opportunity.requirements.map((req, idx) => (
-                              <li key={idx}>{req}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-
                       <div className="text-xs text-muted-foreground pt-2 border-t border-border">
                         <div className="flex items-center justify-between">
                           <span>Posted {formatDate(opportunity.created_at)}</span>
@@ -1128,9 +1056,163 @@ const Opportunities = () => {
                       </div>
                     </CardContent>
                   </Card>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Details Dialogs - Rendered outside cards */}
+            {filteredOpportunities.map((opportunity) => (
+              <Dialog key={`details-dialog-${opportunity.id}`} open={viewingDetailsId === opportunity.id} onOpenChange={(open) => !open && setViewingDetailsId(null)}>
+                <DialogContent className="w-[95vw] sm:w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-background border-border">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl">{opportunity.title}</DialogTitle>
+                    <DialogDescription className="text-base">
+                      <div className="flex items-center gap-2 mt-2">
+                        <Building2 className="h-4 w-4" />
+                        {opportunity.company_name}
+                      </div>
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-3 text-sm">
+                      {opportunity.location && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <MapPin className="h-4 w-4" />
+                          {opportunity.location}
+                        </span>
+                      )}
+                      {opportunity.location_type && (
+                        <Badge variant="secondary" className="text-xs">
+                          {opportunity.location_type}
+                        </Badge>
+                      )}
+                      {opportunity.employment_level && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="h-4 w-4" />
+                          {opportunity.employment_level.charAt(0).toUpperCase() + opportunity.employment_level.slice(1)}
+                        </span>
+                      )}
+                      {opportunity.compensation && (
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <DollarSign className="h-4 w-4" />
+                          {opportunity.compensation}
+                        </span>
+                      )}
+                    </div>
+                    {opportunity.career_interest && (
+                      <div>
+                        <Badge variant="outline" className="border-gold text-gold">
+                          {opportunity.career_interest}
+                        </Badge>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-semibold mb-2">Description</h3>
+                      <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-wrap">
+                        {opportunity.description}
+                      </p>
+                    </div>
+                    {opportunity.requirements && opportunity.requirements.length > 0 && (
+                      <div>
+                        <h3 className="font-semibold mb-2">Requirements</h3>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-muted-foreground">
+                          {opportunity.requirements.map((req, idx) => (
+                            <li key={idx}>{req}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {opportunity.application_deadline && (
+                      <div className="p-3 bg-muted/50 rounded border border-border">
+                        <p className="text-sm">
+                          <span className="font-semibold">Application Deadline:</span> {formatDate(opportunity.application_deadline)}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 pt-4 border-t border-border">
+                    {canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
+                      <Button
+                        size="sm"
+                        variant={hasApplied(opportunity.id) ? "outline" : "default"}
+                        className={hasApplied(opportunity.id) ? "" : "bg-gold hover:bg-gold/90 text-navy"}
+                        disabled={hasApplied(opportunity.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setApplyingTo(opportunity.id);
+                        }}
+                      >
+                        {hasApplied(opportunity.id) ? "Applied" : "Apply"}
+                      </Button>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
+            
+            {/* Apply Dialogs - Rendered outside cards and details dialogs */}
+            {filteredOpportunities.map((opportunity) => (
+              <Dialog key={`apply-dialog-${opportunity.id}`} open={applyingTo === opportunity.id} onOpenChange={(open) => !open && setApplyingTo(null)}>
+                <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto bg-background border-border">
+                  <DialogHeader>
+                    <DialogTitle>Apply to {opportunity.title}</DialogTitle>
+                    <DialogDescription>
+                      Submit your application for this {opportunity.type}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="cover-letter">Cover Letter (Optional)</Label>
+                      <Textarea
+                        id="cover-letter"
+                        value={coverLetter}
+                        onChange={(e) => setCoverLetter(e.target.value)}
+                        placeholder="Tell them why you're interested..."
+                        rows={6}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Resume</Label>
+                      {resumeUrl ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <a href={resumeUrl} target="_blank" rel="noopener noreferrer" className="underline text-blue-700">View My Resume</a>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <input
+                            id="resume-upload"
+                            type="file"
+                            accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                            ref={resumeInputRef}
+                            onChange={handleResumeSelect}
+                            className="block w-full text-sm text-muted-foreground file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-muted file:text-navy hover:file:bg-muted/80"
+                            disabled={resumeUploading}
+                          />
+                          {resumeFile && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{resumeFile.name}</span>
+                              <Button size="sm" variant="outline" onClick={clearResumeSelection} type="button">Remove</Button>
+                            </div>
+                          )}
+                          <div className="text-xs text-muted-foreground">No resume uploaded in your profile. Upload to use for this and future applications.</div>
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      onClick={() => handleApply(opportunity.id)}
+                      className="w-full bg-gold hover:bg-gold/90 text-navy"
+                      disabled={resumeUploading}
+                    >
+                      {resumeUploading ? (
+                        <LoadingSpinner text="Uploading..." />
+                      ) : (
+                        <><Send className="h-4 w-4 mr-2" />Submit Application</>
+                      )}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
           </TabsContent>
 
           <TabsContent value="applications">
