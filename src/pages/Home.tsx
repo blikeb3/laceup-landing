@@ -627,7 +627,8 @@ const Home = () => {
         post_likes(id, user_id),
         post_comments(id, user_id, content, created_at, profiles!post_comments_user_id_fkey(first_name, last_name)),
         post_bookmarks(id, user_id),
-        post_shares(id)
+        post_shares(id),
+        post_media(id, media_url, media_type, display_order)
       `)
       .eq('user_id', user.id)
       .eq('is_published', false)
@@ -779,6 +780,20 @@ const Home = () => {
       return;
     }
 
+    // Validate scheduled date is in the future
+    if (scheduledDate && !saveAsDraft) {
+      const scheduledTime = new Date(scheduledDate);
+      const now = new Date();
+      if (scheduledTime <= now) {
+        toast({
+          title: "Invalid scheduled date",
+          description: "Scheduled date must be in the future",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     setIsUploading(true);
 
     try {
@@ -797,27 +812,27 @@ const Home = () => {
       // Get processed content with mention IDs
       const processedContent = postTextRef.current?.getProcessedContent() || postContent;
 
-      const postData: PostInsert = {
-        user_id: user.id,
-        content: processedContent,
-        media_url: mediaUrl,
-        media_type: mediaType,
-        is_published: !saveAsDraft,
-        published_at: saveAsDraft ? null : new Date().toISOString(),
-      };
-
-      if (scheduledDate && !saveAsDraft) {
-        postData.scheduled_at = scheduledDate;
-        postData.published_at = scheduledDate;
-        postData.is_published = new Date(scheduledDate) <= new Date();
-      }
-
-      const { data: insertedPost, error } = await supabase
-        .from('posts')
-        .insert([postData])
-        .select('id');
+      // Use database function to create post (bypasses RLS for drafts)
+      // Function handles all logic for drafts, scheduled posts, and normal posts
+      const { data: createResult, error } = await supabase.rpc('create_post_with_media', {
+        p_user_id: user.id,
+        p_content: processedContent,
+        p_media_url: mediaUrl,
+        p_media_type: mediaType,
+        p_is_published: !saveAsDraft,
+        p_published_at: saveAsDraft ? null : (scheduledDate || new Date().toISOString()),
+        p_scheduled_at: scheduledDate || null
+      });
 
       if (error) throw error;
+
+      if (!createResult || createResult.length === 0 || !createResult[0].success) {
+        throw new Error(createResult?.[0]?.message || 'Failed to create post');
+      }
+
+      const postId = createResult[0].post_id;
+      const insertedPost = [{ id: postId }];
+
 
       // Upload all media files to post_media table
       if (insertedPost && insertedPost.length > 0) {
