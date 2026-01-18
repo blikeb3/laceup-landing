@@ -289,7 +289,7 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
       if (error) throw error;
 
       // Copy link to clipboard
-      const postUrl = `${window.location.origin}/?post=${post.id}`;
+      const postUrl = `${window.location.origin}/home?post=${post.id}`;
       await navigator.clipboard.writeText(postUrl);
 
       toast({
