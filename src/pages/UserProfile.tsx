@@ -26,6 +26,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -111,6 +118,9 @@ const UserProfile = () => {
   const [deletingEndorsement, setDeletingEndorsement] = useState(false);
   const [userBadges, setUserBadges] = useState<UserBadge[]>([]);
   const [mutualConnections, setMutualConnections] = useState<MutualConnection[]>([]);
+  const [allConnections, setAllConnections] = useState<MutualConnection[]>([]);
+  const [allConnectionsCount, setAllConnectionsCount] = useState(0);
+  const [connectionsModalOpen, setConnectionsModalOpen] = useState(false);
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -260,6 +270,19 @@ const UserProfile = () => {
 
           setMutualConnections(mutualProfiles || []);
         }
+
+        // Fetch all connections for the profile
+        setAllConnectionsCount(theirConnections.length);
+        const allConnectionIds = theirConnections.map(c => c.connected_user_id);
+        if (allConnectionIds.length > 0) {
+          const { data: allProfiles } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, avatar_url, university')
+            .in('id', allConnectionIds)
+            .order('first_name', { ascending: true });
+
+          setAllConnections(allProfiles || []);
+        }
       }
 
       // Fetch user badges
@@ -305,6 +328,8 @@ const UserProfile = () => {
   }, [userId]);
 
   useEffect(() => {
+    // Set loading state to true when userId changes
+    setLoading(true);
     fetchProfile();
     fetchEndorsements();
   }, [fetchProfile, fetchEndorsements]);
@@ -825,51 +850,94 @@ const UserProfile = () => {
             )}
           </Card>
 
-          {/* Mutual Connections */}
-          {mutualConnections.length > 0 && (
+          {/* Connections */}
+          {allConnectionsCount > 0 && (
             <Card className="p-6">
-              <h3 className="font-semibold mb-4 flex items-center">
-                <Users className="h-4 w-4 mr-2" />
-                Mutual Connections
-              </h3>
-              <div className="space-y-3">
-                {mutualConnections.map((connection) => (
-                  <Link
-                    key={connection.id}
-                    to={`/profile/${connection.id}`}
-                    className="flex items-center space-x-3 hover:bg-secondary p-2 rounded-lg transition-colors"
+              <div className="flex justify-between items-center mb-4">
+                <div>
+                  <h3 className="font-semibold flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Connections ({allConnectionsCount})
+                  </h3>
+                  {mutualConnectionsCount > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {mutualConnectionsCount} mutual connection{mutualConnectionsCount !== 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+                {allConnectionsCount > 6 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setConnectionsModalOpen(true)}
+                    className="text-xs"
                   >
-                    <Avatar className="w-10 h-10">
-                      <AvatarImage
-                        src={connection.avatar_url || undefined}
-                        alt={getDisplayName(connection.first_name, connection.last_name)}
-                      />
-                      <AvatarFallback className="p-0 overflow-hidden">
-                        <img
-                          src={laceupLogo}
-                          alt="LaceUP logo"
-                          className="h-full w-full object-contain"
-                          draggable={false}
-                        />
-                      </AvatarFallback>
+                    View All
+                  </Button>
+                )}
+              </div>
+              <div className="space-y-3">
+                {(() => {
+                  // Prioritize mutual connections first, then other connections
+                  const mutualFirst = allConnections.sort((a, b) => {
+                    const aIsMutual = mutualConnections.some(mc => mc.id === a.id);
+                    const bIsMutual = mutualConnections.some(mc => mc.id === b.id);
+                    if (aIsMutual === bIsMutual) return 0;
+                    return aIsMutual ? -1 : 1;
+                  }).slice(0, 6);
 
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm hover:text-gold transition-colors truncate">
-                        {getDisplayName(connection.first_name, connection.last_name) || 'User'}
-                      </p>
-                      {connection.university && (
-                        <p className="text-xs text-muted-foreground truncate">
-                          {connection.university}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                ))}
-                {mutualConnectionsCount > 6 && (
-                  <p className="text-xs text-muted-foreground text-center pt-2">
-                    +{mutualConnectionsCount - 6} more mutual connection{mutualConnectionsCount - 6 !== 1 ? 's' : ''}
-                  </p>
+                  return mutualFirst.map((connection) => {
+                    const isMutual = mutualConnections.some(mc => mc.id === connection.id);
+                    return (
+                      <Link
+                        key={connection.id}
+                        to={`/profile/${connection.id}`}
+                        className={`flex items-center space-x-3 hover:bg-secondary p-2 rounded-lg transition-colors ${
+                          isMutual ? 'border-l-2 border-gold pl-3' : ''
+                        }`}
+                      >
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage
+                            src={connection.avatar_url || undefined}
+                            alt={getDisplayName(connection.first_name, connection.last_name)}
+                          />
+                          <AvatarFallback className="p-0 overflow-hidden">
+                            <img
+                              src={laceupLogo}
+                              alt="LaceUP logo"
+                              className="h-full w-full object-contain"
+                              draggable={false}
+                            />
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm hover:text-gold transition-colors truncate">
+                            {getDisplayName(connection.first_name, connection.last_name) || 'User'}
+                          </p>
+                          {connection.university && (
+                            <p className="text-xs text-muted-foreground truncate">
+                              {connection.university}
+                            </p>
+                          )}
+                        </div>
+                        {isMutual && (
+                          <Badge variant="outline" className="text-xs bg-gold/10 text-gold border-gold/20 flex-shrink-0">
+                            Mutual
+                          </Badge>
+                        )}
+                      </Link>
+                    );
+                  });
+                })()}
+                {allConnectionsCount > 6 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setConnectionsModalOpen(true)}
+                    className="w-full mt-2"
+                  >
+                    View all {allConnectionsCount} connections
+                  </Button>
                 )}
               </div>
             </Card>
@@ -886,6 +954,114 @@ const UserProfile = () => {
         existingEndorsement={myEndorsement}
         onSuccess={fetchEndorsements}
       />
+
+      {/* Connections Modal */}
+      <Dialog open={connectionsModalOpen} onOpenChange={setConnectionsModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center">
+              <Users className="h-5 w-5 mr-2" />
+              Connections ({allConnectionsCount})
+            </DialogTitle>
+            <DialogDescription>
+              {getDisplayName(profile?.first_name, profile?.last_name)}'s network
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Mutual Connections Section */}
+          {mutualConnections.length > 0 && (
+            <div className="space-y-3">
+              <h4 className="font-semibold text-sm flex items-center text-gold">
+                <Badge variant="outline" className="bg-gold/10 text-gold border-gold/20 mr-2">
+                  {mutualConnections.length}
+                </Badge>
+                Mutual Connections
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {mutualConnections.map((connection) => (
+                  <Link
+                    key={connection.id}
+                    to={`/profile/${connection.id}`}
+                    onClick={() => setConnectionsModalOpen(false)}
+                    className="flex items-center space-x-3 p-3 rounded-lg hover:bg-secondary transition-colors border-2 border-gold/20 bg-gold/5"
+                  >
+                    <Avatar className="w-12 h-12 flex-shrink-0">
+                      <AvatarImage
+                        src={connection.avatar_url || undefined}
+                        alt={getDisplayName(connection.first_name, connection.last_name)}
+                      />
+                      <AvatarFallback className="p-0 overflow-hidden">
+                        <img
+                          src={laceupLogo}
+                          alt="LaceUP logo"
+                          className="h-full w-full object-contain"
+                          draggable={false}
+                        />
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm hover:text-gold transition-colors truncate">
+                        {getDisplayName(connection.first_name, connection.last_name) || 'User'}
+                      </p>
+                      {connection.university && (
+                        <p className="text-xs text-muted-foreground truncate">
+                          {connection.university}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Connections Section */}
+          {allConnections.length > mutualConnections.length && (
+            <div className="space-y-3 pt-4 border-t">
+              <h4 className="font-semibold text-sm">
+                Other Connections ({allConnections.length - mutualConnections.length})
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {allConnections
+                  .filter(c => !mutualConnections.some(mc => mc.id === c.id))
+                  .map((connection) => (
+                    <Link
+                      key={connection.id}
+                      to={`/profile/${connection.id}`}
+                      onClick={() => setConnectionsModalOpen(false)}
+                      className="flex items-center space-x-3 p-3 rounded-lg hover:bg-secondary transition-colors border border-border"
+                    >
+                      <Avatar className="w-12 h-12 flex-shrink-0">
+                        <AvatarImage
+                          src={connection.avatar_url || undefined}
+                          alt={getDisplayName(connection.first_name, connection.last_name)}
+                        />
+                        <AvatarFallback className="p-0 overflow-hidden">
+                          <img
+                            src={laceupLogo}
+                            alt="LaceUP logo"
+                            className="h-full w-full object-contain"
+                            draggable={false}
+                          />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm hover:text-gold transition-colors truncate">
+                          {getDisplayName(connection.first_name, connection.last_name) || 'User'}
+                        </p>
+                        {connection.university && (
+                          <p className="text-xs text-muted-foreground truncate">
+                            {connection.university}
+                          </p>
+                        )}
+                      </div>
+                    </Link>
+                  ))}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
