@@ -288,17 +288,37 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
 
       if (error) throw error;
 
-      // Copy link to clipboard
       const postUrl = `${window.location.origin}/home?post=${post.id}`;
-      await navigator.clipboard.writeText(postUrl);
 
-      toast({
-        title: "Post shared",
-        description: "Link copied to clipboard",
-      });
+      // Try Web Share API first (better for mobile/iPad)
+      if (navigator.share) {
+        await navigator.share({
+          title: 'LaceUP Post',
+          text: post.content?.substring(0, 100) || 'Check out this post',
+          url: postUrl,
+        });
+
+        toast({
+          title: "Post shared",
+          description: "Post shared successfully",
+        });
+      } else {
+        // Fallback to clipboard for desktop
+        await navigator.clipboard.writeText(postUrl);
+
+        toast({
+          title: "Post shared",
+          description: "Link copied to clipboard",
+        });
+      }
 
       onUpdate();
     } catch (error: unknown) {
+      // Ignore AbortError from share cancellation
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
+
       console.error('Error sharing post:', error);
       let message = 'Failed to share post';
       if (error instanceof Error) message = error.message;
