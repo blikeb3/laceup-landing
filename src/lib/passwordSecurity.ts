@@ -24,10 +24,10 @@ export async function isPasswordExposed(password: string): Promise<boolean> {
     const suffix = hash.substring(5);
 
     // Query HIBP API with prefix only
+    // Note: Browsers cannot set custom User-Agent headers, so we omit it
+    // The API will use the browser's default User-Agent
     const response = await fetch(`https://api.pwnedpasswords.com/range/${prefix}`, {
-      headers: {
-        'User-Agent': 'LaceUP-Security',
-      },
+      method: 'GET',
     });
 
     if (!response.ok) {
