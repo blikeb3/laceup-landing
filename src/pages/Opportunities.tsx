@@ -50,6 +50,7 @@ interface Application {
     full_name?: string;
     email?: string;
     avatar_url?: string;
+    resume_url?: string;
   };
 }
 
@@ -57,45 +58,60 @@ const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
+  const [myPostedOpportunities, setMyPostedOpportunities] = useState<Opportunity[]>([]);
   const [applicantsByOpportunity, setApplicantsByOpportunity] = useState<Record<string, Application[]>>({});
-
-  interface ApplicantRow {
-    opportunity_id: string;
-    applicant_id: string;
-    cover_letter?: string | null;
-    created_at?: string | null;
-    user?: {
-      id: string;
-      full_name?: string | null;
-      email?: string | null;
-      avatar_url?: string | null;
-    };
-  }
 
   // Fetch applicants for an opportunity (for creator)
   const fetchApplicantsForOpportunity = async (opportunityId: string) => {
-    const { data, error } = await supabase
+    // First, fetch applications
+    const { data: applications, error: appError } = await supabase
       .from("opportunity_applications")
-      .select("*, user:applicant_id(id, full_name, email, avatar_url)")
+      .select("*")
       .eq("opportunity_id", opportunityId);
-    if (!error && data) {
-      // Only include rows with a valid user object
-      const validApplicants: Application[] = (data as unknown as ApplicantRow[])
-        .filter((row) => row.user && typeof row.user === "object" && "id" in row.user)
-        .map((row) => ({
-          opportunity_id: row.opportunity_id,
-          applicant_id: row.applicant_id,
-          cover_letter: row.cover_letter,
-          created_at: row.created_at,
-          user: {
-            id: row.user!.id,
-            full_name: row.user!.full_name,
-            email: row.user!.email,
-            avatar_url: row.user!.avatar_url,
-          },
-        }));
-      setApplicantsByOpportunity((prev) => ({ ...prev, [opportunityId]: validApplicants }));
+
+    if (appError || !applications || applications.length === 0) {
+      setApplicantsByOpportunity((prev) => ({ ...prev, [opportunityId]: [] }));
+      return;
     }
+
+    // Then fetch profile data for all applicants
+    const applicantIds = applications.map((app) => app.applicant_id);
+    const { data: profiles, error: profileError } = await supabase
+      .from("profiles")
+      .select("id, first_name, last_name, email, avatar_url, resume_url")
+      .in("id", applicantIds);
+
+    if (profileError) {
+      console.error("Error fetching applicant profiles:", profileError);
+      setApplicantsByOpportunity((prev) => ({ ...prev, [opportunityId]: [] }));
+      return;
+    }
+
+    // Create a map of profiles by ID
+    const profileMap = new Map(profiles?.map((p) => [p.id, p]) || []);
+
+    // Combine applications with profile data
+    const validApplicants: Application[] = applications.map((app) => {
+      const profile = profileMap.get(app.applicant_id);
+      const firstName = profile?.first_name || "";
+      const lastName = profile?.last_name || "";
+      const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+      return {
+        opportunity_id: app.opportunity_id,
+        applicant_id: app.applicant_id,
+        cover_letter: app.cover_letter,
+        created_at: app.created_at,
+        user: profile ? {
+          id: profile.id,
+          full_name: fullName,
+          email: profile.email,
+          avatar_url: profile.avatar_url,
+          resume_url: profile.resume_url,
+        } : undefined,
+      };
+    });
+
+    setApplicantsByOpportunity((prev) => ({ ...prev, [opportunityId]: validApplicants }));
   };
 
   const [loading, setLoading] = useState(true);
@@ -292,6 +308,22 @@ const Opportunities = () => {
     }
   };
 
+  const fetchMyPostedOpportunities = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("opportunities")
+      .select("*")
+      .eq("posted_by", user.id)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setMyPostedOpportunities(data);
+    }
+  };
+
   const fetchCurrentUserRole = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -310,6 +342,7 @@ const Opportunities = () => {
       await fetchCurrentUserRole();
       await fetchOpportunities();
       await fetchMyApplications();
+      await fetchMyPostedOpportunities();
     };
     init();
   }, []);
@@ -407,18 +440,25 @@ const Opportunities = () => {
     const confirmDelete = window.confirm("Are you sure you want to delete this opportunity?");
     if (!confirmDelete) return;
 
+    if (!currentUserId) {
+      toast({ title: "Error", description: "You must be logged in to delete opportunities.", variant: "destructive" });
+      return;
+    }
+
     const { error } = await supabase
       .from("opportunities")
-      .update({ is_active: false })
+      .delete()
       .eq("id", opportunityId);
 
     if (error) {
+      console.error("Delete opportunity error:", error);
       toast({ title: "Error", description: "Failed to delete opportunity.", variant: "destructive" });
       return;
     }
 
     toast({ title: "Deleted", description: "Opportunity removed." });
     fetchOpportunities();
+    fetchMyPostedOpportunities();
   };
 
   const handleEditOpportunity = (opportunity: Opportunity) => {
@@ -488,6 +528,18 @@ const Opportunities = () => {
       setCoverLetter("");
       return;
     }
+
+    // Send email notification to job poster (fire and forget - don't block on this)
+    supabase.functions.invoke('notify-job-application', {
+      body: {
+        opportunityId,
+        applicantId: user.id,
+      },
+    }).then(({ error: notifyError }) => {
+      if (notifyError) {
+        console.error('Failed to send application notification email:', notifyError);
+      }
+    });
 
     toast({ title: "Success!", description: "Your application has been submitted." });
     setApplyingTo(null);
@@ -733,7 +785,9 @@ const Opportunities = () => {
         <Tabs defaultValue="available" className="space-y-6">
           <TabsList className="bg-muted">
             <TabsTrigger value="available">Available Opportunities</TabsTrigger>
-            <TabsTrigger value="applications">My Applications</TabsTrigger>
+            <TabsTrigger value="applications">
+              {canPostOpportunity ? "My Posted Opportunities" : "My Applications"}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="available" className="space-y-6">
@@ -752,8 +806,8 @@ const Opportunities = () => {
                     <button
                       onClick={() => setSelectedType("all")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${selectedType === "all"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                       All
@@ -761,8 +815,8 @@ const Opportunities = () => {
                     <button
                       onClick={() => setSelectedType("job")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${selectedType === "job"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                       Jobs
@@ -770,8 +824,8 @@ const Opportunities = () => {
                     <button
                       onClick={() => setSelectedType("internship")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${selectedType === "internship"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                       Internships
@@ -779,8 +833,8 @@ const Opportunities = () => {
                     <button
                       onClick={() => setSelectedType("mentorship")}
                       className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${selectedType === "mentorship"
-                          ? "bg-primary text-primary-foreground shadow-sm"
-                          : "text-muted-foreground hover:text-foreground"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                     >
                       Mentorships
@@ -901,9 +955,10 @@ const Opportunities = () => {
                               <Dialog>
                                 <DialogTrigger asChild>
                                   <Button
-                                    variant="secondary"
+                                    variant="outline"
                                     size="sm"
-                                    onClick={async () => {
+                                    onClick={async (e: React.MouseEvent<HTMLButtonElement>) => {
+                                      e.stopPropagation();
                                       if (!applicantsByOpportunity[opportunity.id]) {
                                         await fetchApplicantsForOpportunity(opportunity.id);
                                       }
@@ -914,7 +969,10 @@ const Opportunities = () => {
                                     View Applicants
                                   </Button>
                                 </DialogTrigger>
-                                <DialogContent className="w-[95vw] sm:w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-background border-border">
+                                <DialogContent
+                                  className="w-[95vw] sm:w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-background border-border"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
                                   <DialogHeader>
                                     <DialogTitle>Applicants for {opportunity.title}</DialogTitle>
                                     <DialogDescription>
@@ -939,7 +997,20 @@ const Opportunities = () => {
                                               {app.cover_letter && (
                                                 <div className="mt-1 text-xs text-muted-foreground"><span className="font-semibold">Cover Letter:</span> {app.cover_letter}</div>
                                               )}
-                                              <div className="text-xs text-muted-foreground">Applied {app.created_at ? new Date(app.created_at).toLocaleString() : ""}</div>
+                                              {app.user?.resume_url && (
+                                                <div className="mt-1">
+                                                  <a
+                                                    href={app.user.resume_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                  >
+                                                    📄 Download Resume
+                                                  </a>
+                                                </div>
+                                              )}
+                                              <div className="text-xs text-muted-foreground">Applied {app.created_at ? new Date(app.created_at).toLocaleString() : ""}"</div>
                                             </div>
                                           </li>
                                         ))}
@@ -954,7 +1025,10 @@ const Opportunities = () => {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => handleEditOpportunity(opportunity)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleEditOpportunity(opportunity);
+                                }}
                                 title="Edit"
                               >
                                 <Edit className="h-4 w-4" />
@@ -962,7 +1036,10 @@ const Opportunities = () => {
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleDeleteOpportunity(opportunity.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteOpportunity(opportunity.id);
+                                }}
                                 title="Delete"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1059,7 +1136,7 @@ const Opportunities = () => {
                 ))}
               </div>
             )}
-            
+
             {/* Details Dialogs - Rendered outside cards */}
             {filteredOpportunities.map((opportunity) => (
               <Dialog key={`details-dialog-${opportunity.id}`} open={viewingDetailsId === opportunity.id} onOpenChange={(open) => !open && setViewingDetailsId(null)}>
@@ -1149,7 +1226,7 @@ const Opportunities = () => {
                 </DialogContent>
               </Dialog>
             ))}
-            
+
             {/* Apply Dialogs - Rendered outside cards and details dialogs */}
             {filteredOpportunities.map((opportunity) => (
               <Dialog key={`apply-dialog-${opportunity.id}`} open={applyingTo === opportunity.id} onOpenChange={(open) => !open && setApplyingTo(null)}>
@@ -1216,35 +1293,25 @@ const Opportunities = () => {
           </TabsContent>
 
           <TabsContent value="applications">
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg">
-                  <Heart className="h-5 w-5" />
-                  My Applications
-                </CardTitle>
-                <CardDescription>See every opportunity you have applied to.</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {myApplications.length === 0 && (
-                  <p className="text-sm text-muted-foreground">You have not applied to any opportunities yet.</p>
-                )}
+            {canPostOpportunity ? (
+              /* Employer/Mentor view - My Posted Opportunities */
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Briefcase className="h-5 w-5" />
+                    My Posted Opportunities
+                  </CardTitle>
+                  <CardDescription>Manage opportunities you have posted.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {myPostedOpportunities.length === 0 && (
+                    <p className="text-sm text-muted-foreground">You have not posted any opportunities yet.</p>
+                  )}
 
-                {myApplications.length > 0 && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {myApplications.map((application) => {
-                      const opp = application.opportunity;
-                      if (!opp) {
-                        return (
-                          <Card key={application.opportunity_id} className="border-border">
-                            <CardContent className="p-4 text-sm text-muted-foreground">
-                              This opportunity is no longer available.
-                            </CardContent>
-                          </Card>
-                        );
-                      }
-
-                      return (
-                        <Card key={`${application.opportunity_id}-${application.created_at}`} className="border-border">
+                  {myPostedOpportunities.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {myPostedOpportunities.map((opp) => (
+                        <Card key={opp.id} className="border-border">
                           <CardHeader className="pb-3">
                             <div className="flex items-start justify-between gap-3">
                               <div className="space-y-1">
@@ -1272,7 +1339,7 @@ const Opportunities = () => {
                                 </CardDescription>
                               </div>
                               <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
-                                Applied {formatDate(application.created_at || opp.created_at)}
+                                Posted {formatDate(opp.created_at)}
                               </div>
                             </div>
                           </CardHeader>
@@ -1290,14 +1357,179 @@ const Opportunities = () => {
                               </div>
                             )}
                             <p className="text-sm text-foreground line-clamp-3">{opp.description}</p>
+                            <div className="flex items-center gap-2 pt-2">
+                              <Dialog>
+                                <DialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={async () => {
+                                      if (!applicantsByOpportunity[opp.id]) {
+                                        await fetchApplicantsForOpportunity(opp.id);
+                                      }
+                                    }}
+                                  >
+                                    <Users className="h-4 w-4 mr-1" />
+                                    View Applicants
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-[95vw] sm:w-full sm:max-w-lg max-h-[90vh] overflow-y-auto bg-background border-border">
+                                  <DialogHeader>
+                                    <DialogTitle>Applicants for {opp.title}</DialogTitle>
+                                    <DialogDescription>
+                                      See all users who have applied to this opportunity.
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    {applicantsByOpportunity[opp.id] && applicantsByOpportunity[opp.id].length > 0 ? (
+                                      <ul className="divide-y divide-border">
+                                        {applicantsByOpportunity[opp.id].map((app, idx) => (
+                                          <li key={app.applicant_id || idx} className="py-3 flex items-center gap-3">
+                                            {app.user?.avatar_url ? (
+                                              <img src={app.user.avatar_url} alt="avatar" className="w-8 h-8 rounded-full" />
+                                            ) : (
+                                              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-lg font-bold text-navy">
+                                                {app.user?.full_name?.[0] || app.user?.email?.[0] || "?"}
+                                              </div>
+                                            )}
+                                            <div>
+                                              <div className="font-medium text-foreground">{app.user?.full_name || app.user?.email || "Unknown"}</div>
+                                              <div className="text-xs text-muted-foreground">{app.user?.email}</div>
+                                              {app.cover_letter && (
+                                                <div className="mt-1 text-xs text-muted-foreground"><span className="font-semibold">Cover Letter:</span> {app.cover_letter}</div>
+                                              )}
+                                              {app.user?.resume_url && (
+                                                <div className="mt-1">
+                                                  <a
+                                                    href={app.user.resume_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1"
+                                                  >
+                                                    📄 Download Resume
+                                                  </a>
+                                                </div>
+                                              )}
+                                              <div className="text-xs text-muted-foreground">Applied {app.created_at ? new Date(app.created_at).toLocaleString() : ""}</div>
+                                            </div>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <div className="text-muted-foreground text-center">No applicants yet.</div>
+                                    )}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleEditOpportunity(opp)}
+                              >
+                                <Edit className="h-4 w-4 mr-1" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleDeleteOpportunity(opp.id)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
                           </CardContent>
                         </Card>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              /* Athlete view - My Applications */
+              <Card className="bg-card border-border">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Heart className="h-5 w-5" />
+                    My Applications
+                  </CardTitle>
+                  <CardDescription>See every opportunity you have applied to.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {myApplications.length === 0 && (
+                    <p className="text-sm text-muted-foreground">You have not applied to any opportunities yet.</p>
+                  )}
+
+                  {myApplications.length > 0 && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {myApplications.map((application) => {
+                        const opp = application.opportunity;
+                        if (!opp) {
+                          return (
+                            <Card key={application.opportunity_id} className="border-border">
+                              <CardContent className="p-4 text-sm text-muted-foreground">
+                                This opportunity is no longer available.
+                              </CardContent>
+                            </Card>
+                          );
+                        }
+
+                        return (
+                          <Card key={`${application.opportunity_id}-${application.created_at}`} className="border-border">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={getTypeBadgeColor(opp.type) as "default" | "secondary" | "outline"}>
+                                      {opp.type.charAt(0).toUpperCase() + opp.type.slice(1)}
+                                    </Badge>
+                                    {opp.application_deadline && (
+                                      <span className="text-xs text-muted-foreground">
+                                        Deadline {formatDate(opp.application_deadline)}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <CardTitle className="text-lg leading-tight">{opp.title}</CardTitle>
+                                  <CardDescription className="flex flex-wrap items-center gap-3 text-sm">
+                                    <span className="flex items-center gap-1"><Building2 className="h-4 w-4" />{opp.company_name}</span>
+                                    {opp.location && (
+                                      <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{opp.location}</span>
+                                    )}
+                                    {opp.employment_level && (
+                                      <Badge variant="secondary" className="text-xs">
+                                        {opp.employment_level}
+                                      </Badge>
+                                    )}
+                                  </CardDescription>
+                                </div>
+                                <div className="text-xs text-muted-foreground text-right whitespace-nowrap">
+                                  Applied {formatDate(application.created_at || opp.created_at)}
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3 pt-0">
+                              {opp.career_interest && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <Badge variant="outline" className="text-xs">Career</Badge>
+                                  <span>{opp.career_interest}</span>
+                                </div>
+                              )}
+                              {opp.compensation && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                  <DollarSign className="h-4 w-4" />
+                                  <span>{opp.compensation}</span>
+                                </div>
+                              )}
+                              <p className="text-sm text-foreground line-clamp-3">{opp.description}</p>
+                            </CardContent>
+                          </Card>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>
