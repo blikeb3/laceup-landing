@@ -121,6 +121,8 @@ const UserProfile = () => {
   const [allConnections, setAllConnections] = useState<MutualConnection[]>([]);
   const [allConnectionsCount, setAllConnectionsCount] = useState(0);
   const [connectionsModalOpen, setConnectionsModalOpen] = useState(false);
+  const [pendingRequestStatus, setPendingRequestStatus] = useState<"none" | "sent" | "received">("none");
+  const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -230,6 +232,21 @@ const UserProfile = () => {
       // Track profile view
       await trackProfileView(userId, user.id);
 
+      // Check connection status (connected, pending sent, pending received, or none)
+      const { data: sentRequest } = await supabase
+        .from("connection_requests")
+        .select("id, status")
+        .eq("requester_id", user.id)
+        .eq("receiver_id", userId)
+        .maybeSingle();
+
+      const { data: receivedRequest } = await supabase
+        .from("connection_requests")
+        .select("id, status")
+        .eq("requester_id", userId)
+        .eq("receiver_id", user.id)
+        .maybeSingle();
+
       // Check if already connected
       const { data: connectionData } = await supabase
         .from("connections")
@@ -238,7 +255,18 @@ const UserProfile = () => {
         .eq("connected_user_id", userId)
         .maybeSingle();
 
+      // Determine connection state
       setIsConnected(!!connectionData);
+      if (sentRequest && sentRequest.status === "pending") {
+        setPendingRequestStatus("sent");
+        setPendingRequestId(sentRequest.id);
+      } else if (receivedRequest && receivedRequest.status === "pending") {
+        setPendingRequestStatus("received");
+        setPendingRequestId(receivedRequest.id);
+      } else {
+        setPendingRequestStatus("none");
+        setPendingRequestId(null);
+      }
 
       // Calculate mutual connections
       const { data: myConnections } = await supabase
@@ -372,30 +400,25 @@ const UserProfile = () => {
     try {
       setConnectionLoading(true);
 
-      // Check if they already have a connection to us (meaning they sent a request first)
-      const { data: existingConnection } = await supabase
-        .from("connections")
-        .select("id")
-        .eq("user_id", userId)
-        .eq("connected_user_id", currentUserId)
-        .single();
-
-      const { error } = await supabase
-        .from("connections")
+      // Create a new connection request
+      const { error: requestError } = await supabase
+        .from("connection_requests")
         .insert({
-          user_id: currentUserId,
-          connected_user_id: userId,
+          requester_id: currentUserId,
+          receiver_id: userId,
+          status: "pending",
         });
 
-      if (error) throw error;
+      if (requestError) throw requestError;
 
-      setIsConnected(true);
+      setPendingRequestStatus("sent");
+      
       toast({
-        title: "Connected!",
-        description: `You are now connected with ${getDisplayName(profile?.first_name, profile?.last_name, "this user")}.`,
+        title: "Request Sent",
+        description: `Your connection request has been sent to ${getDisplayName(profile?.first_name, profile?.last_name, "this user")}.`,
       });
 
-      // Send notification
+      // Send notification to recipient
       const { data: currentUserProfile } = await supabase
         .from('profiles')
         .select('first_name, last_name')
@@ -408,18 +431,154 @@ const UserProfile = () => {
           currentUserProfile.last_name
         );
 
-        // If they already connected to us, notify them we accepted
-        // Otherwise, notify them of the new connection request
-        if (existingConnection) {
-          await notifyConnectionAccepted(userId, currentUserName, currentUserId);
-        } else {
-          await notifyConnectionRequest(userId, currentUserName, currentUserId);
-        }
+        await notifyConnectionRequest(userId, currentUserName, currentUserId);
       }
     } catch (error) {
+      console.error("Error sending connection request:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to connect",
+        description: error instanceof Error ? error.message : "Failed to send connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  const handleAcceptRequest = async () => {
+    if (!userId || !currentUserId || !pendingRequestId) return;
+
+    try {
+      setConnectionLoading(true);
+
+      // Update request status to accepted
+      const { error: updateError } = await supabase
+        .from("connection_requests")
+        .update({ status: "accepted" })
+        .eq("id", pendingRequestId);
+
+      if (updateError) throw updateError;
+
+      // Create mutual connections
+      const { error: conn1Error } = await supabase
+        .from("connections")
+        .insert({
+          user_id: currentUserId,
+          connected_user_id: userId,
+        })
+        .select()
+        .single();
+
+      if (conn1Error && conn1Error.code !== "23505") {
+        throw conn1Error;
+      }
+
+      const { error: conn2Error } = await supabase
+        .from("connections")
+        .insert({
+          user_id: userId,
+          connected_user_id: currentUserId,
+        })
+        .select()
+        .single();
+
+      if (conn2Error && conn2Error.code !== "23505") {
+        throw conn2Error;
+      }
+
+      setIsConnected(true);
+      setPendingRequestStatus("none");
+      setPendingRequestId(null);
+
+      toast({
+        title: "Request Accepted",
+        description: `You are now connected with ${getDisplayName(profile?.first_name, profile?.last_name, "this user")}.`,
+      });
+
+      // Send notification to requester
+      const { data: currentUserProfile } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', currentUserId)
+        .single();
+
+      if (currentUserProfile) {
+        const currentUserName = getDisplayName(
+          currentUserProfile.first_name,
+          currentUserProfile.last_name
+        );
+
+        await notifyConnectionAccepted(userId, currentUserName, currentUserId);
+      }
+    } catch (error) {
+      console.error("Error accepting request:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to accept connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  const handleRejectRequest = async () => {
+    if (!pendingRequestId) return;
+
+    try {
+      setConnectionLoading(true);
+
+      const { error } = await supabase
+        .from("connection_requests")
+        .update({ status: "rejected" })
+        .eq("id", pendingRequestId);
+
+      if (error) throw error;
+
+      setPendingRequestStatus("none");
+      setPendingRequestId(null);
+
+      toast({
+        title: "Request Rejected",
+        description: "The connection request has been declined.",
+      });
+    } catch (error) {
+      console.error("Error rejecting request:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to reject connection request",
+        variant: "destructive",
+      });
+    } finally {
+      setConnectionLoading(false);
+    }
+  };
+
+  const handleCancelRequest = async () => {
+    if (!pendingRequestId) return;
+
+    try {
+      setConnectionLoading(true);
+
+      const { error } = await supabase
+        .from("connection_requests")
+        .delete()
+        .eq("id", pendingRequestId);
+
+      if (error) throw error;
+
+      setPendingRequestStatus("none");
+      setPendingRequestId(null);
+
+      toast({
+        title: "Request Cancelled",
+        description: "Your connection request has been cancelled.",
+      });
+    } catch (error) {
+      console.error("Error cancelling request:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to cancel connection request",
         variant: "destructive",
       });
     } finally {
@@ -432,13 +591,21 @@ const UserProfile = () => {
 
     try {
       setConnectionLoading(true);
-      const { error } = await supabase
+      
+      // Delete both directions of the connection
+      const { error: error1 } = await supabase
         .from("connections")
         .delete()
         .eq("user_id", currentUserId)
         .eq("connected_user_id", userId);
 
-      if (error) throw error;
+      const { error: error2 } = await supabase
+        .from("connections")
+        .delete()
+        .eq("user_id", userId)
+        .eq("connected_user_id", currentUserId);
+
+      if (error1 || error2) throw error1 || error2;
 
       setIsConnected(false);
       toast({
@@ -569,6 +736,41 @@ const UserProfile = () => {
                     )}
                     Disconnect
                   </Button>
+                ) : pendingRequestStatus === "sent" ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleCancelRequest}
+                    disabled={connectionLoading}
+                  >
+                    {connectionLoading ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <UserPlus className="h-4 w-4 mr-2" />
+                    )}
+                    Pending...
+                  </Button>
+                ) : pendingRequestStatus === "received" ? (
+                  <>
+                    <Button
+                      className="bg-gold hover:bg-gold-light text-navy"
+                      onClick={handleAcceptRequest}
+                      disabled={connectionLoading}
+                    >
+                      {connectionLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-4 w-4 mr-2" />
+                      )}
+                      Accept
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleRejectRequest}
+                      disabled={connectionLoading}
+                    >
+                      Reject
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     className="bg-gold hover:bg-gold-light text-navy"

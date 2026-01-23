@@ -17,6 +17,7 @@ import LaceHub from "./pages/LaceHub";
 import MyHub from "./pages/MyHub";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage/LandingPage";
+import { PendingRequests } from "./components/PendingRequests";
 import { TooltipProvider } from "./components/ui/tooltip";
 
 const queryClient = new QueryClient();
@@ -93,6 +94,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <MyHub />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/pending-requests"
+          element={
+            <ProtectedRoute>
+              <PendingRequests />
             </ProtectedRoute>
           }
         />
