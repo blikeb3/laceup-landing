@@ -10,15 +10,42 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isRejected, setIsRejected] = useState(false);
 
   useEffect(() => {
     let mounted = true;
+
+    const checkRejectedStatus = async (userId: string) => {
+      try {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("approval_status")
+          .eq("id", userId)
+          .single();
+
+        if (mounted) {
+          // Only block if explicitly rejected
+          setIsRejected(profile?.approval_status === "rejected");
+          setLoading(false);
+        }
+      } catch (error) {
+        console.error("Error checking account status:", error);
+        if (mounted) {
+          setIsRejected(false);
+          setLoading(false);
+        }
+      }
+    };
 
     // Check for existing session first
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (mounted) {
         setSession(session);
-        setLoading(false);
+        if (session?.user) {
+          checkRejectedStatus(session.user.id);
+        } else {
+          setLoading(false);
+        }
       }
     });
 
@@ -27,7 +54,12 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       (_event, session) => {
         if (mounted) {
           setSession(session);
-          setLoading(false);
+          if (session?.user) {
+            checkRejectedStatus(session.user.id);
+          } else {
+            setIsRejected(false);
+            setLoading(false);
+          }
         }
       }
     );
@@ -47,6 +79,12 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }
 
   if (!session) {
+    return <Navigate to="/auth" replace />;
+  }
+
+  if (isRejected) {
+    // Sign out rejected users and redirect to auth
+    supabase.auth.signOut();
     return <Navigate to="/auth" replace />;
   }
 
