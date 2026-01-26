@@ -15,16 +15,34 @@ interface LogContext {
  */
 const sanitizeData = (data: unknown): unknown => {
     if (!data || typeof data !== 'object') return data;
-    
-    const sensitiveKeys = ['password', 'token', 'secret', 'apiKey', 'api_key', 'privateKey', 'private_key'];
+
+    const sensitiveKeys = [
+        'password',
+        'token',
+        'secret',
+        'apiKey',
+        'api_key',
+        'privateKey',
+        'private_key',
+        'authorization',
+        'bearer',
+        'credential',
+        'service_role',
+        'serviceRole',
+        'brevo',
+        'stripe',
+        'openai',
+        'elevenlabs',
+        'webhook',
+    ];
     const sanitized = { ...data as Record<string, unknown> };
-    
+
     for (const key of Object.keys(sanitized)) {
         if (sensitiveKeys.some(sk => key.toLowerCase().includes(sk))) {
             sanitized[key] = '[REDACTED]';
         }
     }
-    
+
     return sanitized;
 };
 
@@ -83,7 +101,7 @@ export const secureLog = {
     security: (event: string, context?: LogContext) => {
         const timestamp = new Date().toISOString();
         const logMessage = `[SECURITY] ${timestamp} - ${event}`;
-        
+
         if (isDev) {
             console.warn(logMessage, context ? sanitizeData(context) : '');
         } else {
@@ -112,14 +130,14 @@ export const logPerformance = (operation: string, duration: number) => {
  * Create a logger with a specific context/module name
  */
 export const createLogger = (moduleName: string) => ({
-    debug: (message: string, context?: LogContext) => 
+    debug: (message: string, context?: LogContext) =>
         secureLog.debug(`[${moduleName}] ${message}`, context),
-    info: (message: string, context?: LogContext) => 
+    info: (message: string, context?: LogContext) =>
         secureLog.info(`[${moduleName}] ${message}`, context),
-    warn: (message: string, context?: LogContext) => 
+    warn: (message: string, context?: LogContext) =>
         secureLog.warn(`[${moduleName}] ${message}`, context),
-    error: (message: string, error?: unknown, context?: LogContext) => 
+    error: (message: string, error?: unknown, context?: LogContext) =>
         secureLog.error(`[${moduleName}] ${message}`, error, context),
-    security: (event: string, context?: LogContext) => 
+    security: (event: string, context?: LogContext) =>
         secureLog.security(`[${moduleName}] ${event}`, context)
 });
