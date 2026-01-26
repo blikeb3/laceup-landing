@@ -938,14 +938,7 @@ const Home = () => {
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <h3 className="font-semibold">{getFullName(currentUser?.first_name, currentUser?.last_name) || 'User'}</h3>
-                  {currentUserIsAdmin && (
-                    <Badge
-                      variant="destructive"
-                      className="text-xs px-1.5 py-0.5"
-                    >
-                      Admin
-                    </Badge>
-                  )}
+
                   {currentUserRole && (
                     <Badge
                       className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"

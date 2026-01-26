@@ -721,14 +721,7 @@ const MyHub = () => {
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(connection.first_name, connection.last_name) || 'User'}</CardTitle>
-                          {connection.user_is_admin && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1.5 py-0.5"
-                            >
-                              Admin
-                            </Badge>
-                          )}
+
                           {connection.user_role && (
                             <Badge
                               className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
@@ -903,14 +896,7 @@ const MyHub = () => {
                       <div className="flex-1">
                         <div className="flex flex-wrap items-center gap-2 mb-1">
                           <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(profile.first_name, profile.last_name) || 'User'}</CardTitle>
-                          {profile.user_is_admin && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1.5 py-0.5"
-                            >
-                              Admin
-                            </Badge>
-                          )}
+
                           {profile.user_role && (
                             <Badge
                               className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"

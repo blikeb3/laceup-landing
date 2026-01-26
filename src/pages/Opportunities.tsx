@@ -1144,14 +1144,7 @@ const Opportunities = () => {
                           {opportunity.posted_by_name && (
                             <div className="flex items-center flex-wrap gap-2">
                               <span>by {opportunity.posted_by_name}</span>
-                              {opportunity.posted_by_is_admin && (
-                                <Badge
-                                  variant="destructive"
-                                  className="text-xs px-1.5 py-0.5"
-                                >
-                                  Admin
-                                </Badge>
-                              )}
+
                               {opportunity.posted_by_role && (
                                 <Badge
                                   className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
