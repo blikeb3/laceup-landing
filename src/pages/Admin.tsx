@@ -28,6 +28,7 @@ interface Profile {
   last_name: string | null;
   university: string | null;
   sport: string | null;
+  approval_status: string;
   created_at: string;
   user_role?: string | null;
 }
@@ -583,6 +584,56 @@ const Admin = () => {
     }).trim();
   };
 
+  const handleRejectUser = async (userId: string) => {
+    if (!confirm("Are you sure you want to deactivate this user account? They will no longer be able to access the platform.")) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ approval_status: "rejected" })
+      .eq("id", userId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to deactivate user.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "User account deactivated.",
+    });
+
+    fetchDashboardData();
+  };
+
+  const handleReactivateUser = async (userId: string) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ approval_status: "approved" })
+      .eq("id", userId);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to reactivate user.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Success",
+      description: "User account reactivated.",
+    });
+
+    fetchDashboardData();
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto p-8 flex items-center justify-center min-h-screen">
@@ -665,8 +716,13 @@ const Admin = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="role-changes" className="space-y-6">
+      <Tabs defaultValue="users" className="space-y-6">
         <TabsList className="w-full sm:w-auto flex-wrap h-auto">
+          <TabsTrigger value="users" className="flex-1 sm:flex-none">
+            <Users className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">User Management</span>
+            <span className="sm:hidden">Users</span>
+          </TabsTrigger>
           <TabsTrigger value="role-changes" className="flex-1 sm:flex-none">
             <UserCog className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Role Changes</span>
@@ -698,6 +754,71 @@ const Admin = () => {
             )}
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>User Management</CardTitle>
+              <CardDescription>View all users and manage account status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto -mx-6 px-6">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>University</TableHead>
+                      <TableHead>Sport</TableHead>
+                      <TableHead>Registered</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {allProfiles.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{getFullName(user.first_name, user.last_name) || "—"}</TableCell>
+                        <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell>{user.university || "—"}</TableCell>
+                        <TableCell>{user.sport || "—"}</TableCell>
+                        <TableCell>{formatDateLong(user.created_at)}</TableCell>
+                        <TableCell>
+                          {user.approval_status === "rejected" ? (
+                            <Badge variant="destructive">Deactivated</Badge>
+                          ) : (
+                            <Badge variant="default" className="bg-green-600">Active</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {user.approval_status === "rejected" ? (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleReactivateUser(user.id)}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Reactivate
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRejectUser(user.id)}
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Deactivate
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="role-changes">
           <Card>
