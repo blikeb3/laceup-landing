@@ -763,14 +763,6 @@ const Profile = () => {
                 <div className="flex flex-col sm:flex-row items-center sm:items-start gap-2 mb-2">
                   <h1 className="text-2xl sm:text-3xl font-heading font-bold">{getFullName(profileData.firstName, profileData.lastName) || 'Your Name'}</h1>
                   <div className="flex flex-wrap gap-2 items-center">
-                    {isAdmin && (
-                      <Badge
-                        variant="destructive"
-                        className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8"
-                      >
-                        Admin
-                      </Badge>
-                    )}
                     {userRole && (
                       <Badge
                         className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8 bg-navy text-gold border-navy"
