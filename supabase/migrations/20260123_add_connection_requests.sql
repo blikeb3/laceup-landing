@@ -43,8 +43,94 @@ CREATE INDEX IF NOT EXISTS idx_connection_requests_created_at
 
 ALTER TABLE connection_requests ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS connection_requests_deny_unauthenticated_select ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_deny_unauthenticated_insert ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_deny_unauthenticated_update ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_deny_unauthenticated_delete ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_admin_select ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_admin_insert ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_admin_update ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_admin_delete ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_view_policy ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_insert_policy ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_update_policy ON connection_requests;
+DROP POLICY IF EXISTS connection_requests_delete_policy ON connection_requests;
+
+-- Policy: Block all unauthenticated access (baseline security) - SELECT
+CREATE POLICY connection_requests_deny_unauthenticated_select
+  ON connection_requests
+  FOR SELECT
+  USING (auth.uid() IS NOT NULL);
+
+-- Policy: Block all unauthenticated access (baseline security) - INSERT
+CREATE POLICY connection_requests_deny_unauthenticated_insert
+  ON connection_requests
+  FOR INSERT
+  WITH CHECK (auth.uid() IS NOT NULL);
+
+-- Policy: Block all unauthenticated access (baseline security) - UPDATE
+CREATE POLICY connection_requests_deny_unauthenticated_update
+  ON connection_requests
+  FOR UPDATE
+  USING (auth.uid() IS NOT NULL);
+
+-- Policy: Block all unauthenticated access (baseline security) - DELETE
+CREATE POLICY connection_requests_deny_unauthenticated_delete
+  ON connection_requests
+  FOR DELETE
+  USING (auth.uid() IS NOT NULL);
+
+-- Policy: Allow admins full access to all rows - SELECT
+CREATE POLICY connection_requests_admin_select
+  ON connection_requests
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
+    )
+  );
+
+-- Policy: Allow admins full access to all rows - INSERT
+CREATE POLICY connection_requests_admin_insert
+  ON connection_requests
+  FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
+    )
+  );
+
+-- Policy: Allow admins full access to all rows - UPDATE
+CREATE POLICY connection_requests_admin_update
+  ON connection_requests
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
+    )
+  );
+
+-- Policy: Allow admins full access to all rows - DELETE
+CREATE POLICY connection_requests_admin_delete
+  ON connection_requests
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM user_roles
+      WHERE user_roles.user_id = auth.uid()
+      AND user_roles.role = 'admin'
+    )
+  );
+
 -- Policy: Users can view their own requests (as receiver or requester)
-CREATE POLICY IF NOT EXISTS connection_requests_view_policy
+CREATE POLICY connection_requests_view_policy
   ON connection_requests
   FOR SELECT
   USING (
@@ -52,7 +138,7 @@ CREATE POLICY IF NOT EXISTS connection_requests_view_policy
   );
 
 -- Policy: Users can insert requests (they are the requester)
-CREATE POLICY IF NOT EXISTS connection_requests_insert_policy
+CREATE POLICY connection_requests_insert_policy
   ON connection_requests
   FOR INSERT
   WITH CHECK (
@@ -60,7 +146,7 @@ CREATE POLICY IF NOT EXISTS connection_requests_insert_policy
   );
 
 -- Policy: Users can update their own requests (receiver can accept/reject)
-CREATE POLICY IF NOT EXISTS connection_requests_update_policy
+CREATE POLICY connection_requests_update_policy
   ON connection_requests
   FOR UPDATE
   USING (
@@ -71,7 +157,7 @@ CREATE POLICY IF NOT EXISTS connection_requests_update_policy
   );
 
 -- Policy: Users can delete their own requests
-CREATE POLICY IF NOT EXISTS connection_requests_delete_policy
+CREATE POLICY connection_requests_delete_policy
   ON connection_requests
   FOR DELETE
   USING (
@@ -102,7 +188,8 @@ EXECUTE FUNCTION update_connection_requests_updated_at();
 -- ===================================
 
 -- Function to migrate existing one-way connections to pending requests
--- This function should be run after table creation to migrate existing data
+-- This function is OPTIONAL and only needed if you have an existing connections table
+-- If you're starting fresh, this function is not required
 CREATE OR REPLACE FUNCTION migrate_connections_to_requests()
 RETURNS TABLE(
   requester_id UUID,
@@ -114,7 +201,19 @@ DECLARE
   conn RECORD;
   mutual_exists BOOLEAN;
   migration_count INT := 0;
+  table_exists BOOLEAN;
 BEGIN
+  -- Check if connections table exists
+  SELECT EXISTS(
+    SELECT 1 FROM information_schema.tables 
+    WHERE table_name = 'connections' AND table_schema = 'public'
+  ) INTO table_exists;
+
+  IF NOT table_exists THEN
+    RAISE NOTICE 'No connections table found. Skipping migration. This is normal for new installations.';
+    RETURN;
+  END IF;
+
   -- Loop through all existing connections
   FOR conn IN SELECT user_id, connected_user_id FROM connections LOOP
     -- Check if mutual connection exists (reverse direction)

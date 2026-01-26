@@ -83,6 +83,7 @@ const Home = () => {
   const [drafts, setDrafts] = useState<Post[]>([]);
   const [bookmarks, setBookmarks] = useState<Post[]>([]);
   const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const [resources, setResources] = useState<Resource[]>([]);
   const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
   const [sharedPost, setSharedPost] = useState<Post | null>(null);
@@ -251,6 +252,27 @@ const Home = () => {
     postsRef.current = posts;
   }, [posts]);
 
+  // Fetch pending connection requests on mount
+  useEffect(() => {
+    const fetchPendingRequests = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("connection_requests")
+        .select("receiver_id")
+        .eq("requester_id", user.id)
+        .eq("status", "pending");
+
+      if (!error && data) {
+        const pending = new Set(data.map(req => req.receiver_id));
+        setPendingRequests(pending);
+      }
+    };
+
+    fetchPendingRequests();
+  }, []);
+
   useEffect(() => {
     if (showComposer && postTextRef.current) {
       postTextRef.current.focus();
@@ -366,33 +388,72 @@ const Home = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Create a new connection request
-      const { error: requestError } = await supabase
-        .from("connection_requests")
-        .insert({
-          requester_id: user.id,
-          receiver_id: profileId,
-          status: "pending",
+      // Check if request is already pending
+      if (pendingRequests.has(profileId)) {
+        // Cancel the pending request
+        const { error: deleteError } = await supabase
+          .from("connection_requests")
+          .delete()
+          .eq("requester_id", user.id)
+          .eq("receiver_id", profileId)
+          .eq("status", "pending");
+
+        if (deleteError) throw deleteError;
+
+        toast({
+          title: "Request Cancelled",
+          description: "Your connection request has been cancelled.",
         });
 
-      if (requestError) throw requestError;
+        setPendingRequests(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(profileId);
+          return newSet;
+        });
+      } else {
+        // Check if a pending request already exists in the database
+        const { data: existingRequest } = await supabase
+          .from("connection_requests")
+          .select("id")
+          .eq("requester_id", user.id)
+          .eq("receiver_id", profileId)
+          .eq("status", "pending")
+          .single();
 
-      toast({
-        title: "Request Sent!",
-        description: "Your connection request has been sent.",
-      });
+        if (existingRequest) {
+          // Request already pending, just update state
+          setPendingRequests(prev => new Set(prev).add(profileId));
+          return;
+        }
 
-      setSuggestions(prev => prev.filter(s => s.id !== profileId));
+        // Send a new connection request
+        const { error: requestError } = await supabase
+          .from("connection_requests")
+          .insert({
+            requester_id: user.id,
+            receiver_id: profileId,
+            status: "pending",
+          });
 
-      // Send notification
-      if (currentUser) {
-        const currentUserName = getFullName(currentUser.first_name, currentUser.last_name);
-        await notifyConnectionRequest(profileId, currentUserName, user.id);
+        if (requestError) throw requestError;
+
+        toast({
+          title: "Request Sent!",
+          description: "Your connection request has been sent.",
+        });
+
+        setPendingRequests(prev => new Set(prev).add(profileId));
+
+        // Send notification
+        if (currentUser) {
+          const currentUserName = getFullName(currentUser.first_name, currentUser.last_name);
+          await notifyConnectionRequest(profileId, currentUserName, user.id);
+        }
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to send connection request",
+        description: error instanceof Error ? error.message : "Failed to manage connection request",
         variant: "destructive",
       });
     }
@@ -1462,14 +1523,21 @@ const Home = () => {
                     </Link>
                     <Button
                       size="sm"
-                      variant="ghost"
+                      variant={pendingRequests.has(profile.id) ? "outline" : "ghost"}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleConnect(profile.id);
                       }}
-                      className="shrink-0"
+                      className={pendingRequests.has(profile.id) ? "shrink-0 text-amber-600 border-amber-600 hover:bg-amber-50" : "shrink-0"}
                     >
-                      <UserPlus className="h-4 w-4" />
+                      {pendingRequests.has(profile.id) ? (
+                        <>
+                          <X className="h-4 w-4 mr-1" />
+                          Pending
+                        </>
+                      ) : (
+                        <UserPlus className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 ))
