@@ -22,6 +22,7 @@ import type { Json } from "@/integrations/supabase/types";
 import { SkillSelector } from "@/components/SkillSelector";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ReferralDialog } from "@/components/ReferralDialog";
+import { SecuritySettings } from "@/components/SecuritySettings";
 import { useUserAnalytics, formatCount } from "@/hooks/useUserAnalytics";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
@@ -157,6 +158,12 @@ const Profile = () => {
   const [requestedRole, setRequestedRole] = useState<string>("");
   const [roleChangeReason, setRoleChangeReason] = useState<string>("");
   const [submittingRoleChange, setSubmittingRoleChange] = useState(false);
+
+  // 2FA
+  const [mfaFactors, setMfaFactors] = useState([]);
+  const [showMfaSetup, setShowMfaSetup] = useState(false);
+  const [qrCode, setQrCode] = useState("");
+  const [backupCodes, setBackupCodes] = useState([]);
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -1581,6 +1588,9 @@ const Profile = () => {
               </p>
             )}
           </Card>
+
+          {/* Security Settings */}
+          <SecuritySettings userId={currentUserId} userEmail={authEmail} />
 
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
