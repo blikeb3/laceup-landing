@@ -44,7 +44,6 @@ interface UserWithBadges {
   first_name: string | null;
   last_name: string | null;
   created_at: string | null;
-  approval_status?: string | null;
   badges: Badge[];
 }
 
@@ -89,8 +88,7 @@ export const AdminUsers = () => {
     try {
       const { data: profiles, error: profileError } = await supabase
         .from("profiles")
-        .select("id, email, first_name, last_name, created_at, approval_status")
-        .eq("approval_status", "approved")
+        .select("id, email, first_name, last_name, created_at")
         .order("created_at", { ascending: false });
 
       if (profileError) throw profileError;
@@ -353,7 +351,7 @@ export const AdminUsers = () => {
 
     try {
       setDeletingBadge(badgeId);
-      
+
       // First delete all user_badges assignments
       const { error: userBadgesError } = await supabase
         .from("user_badges")
@@ -596,7 +594,7 @@ export const AdminUsers = () => {
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
-                        <Link 
+                        <Link
                           to={`/profile/${user.id}`}
                           className="hover:text-gold transition-colors hover:underline"
                         >
@@ -768,22 +766,20 @@ export const AdminUsers = () => {
                 <div className="flex gap-2 p-1 bg-muted rounded-lg">
                   <button
                     onClick={() => setUseEmojiIcon(false)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${
-                      !useEmojiIcon
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${!useEmojiIcon
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
                   >
                     <ImageIcon className="h-4 w-4" />
                     <span>Image</span>
                   </button>
                   <button
                     onClick={() => setUseEmojiIcon(true)}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${
-                      useEmojiIcon
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded transition-all font-medium ${useEmojiIcon
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                      }`}
                   >
                     <Smile className="h-4 w-4" />
                     <span>Emoji</span>
@@ -838,11 +834,10 @@ export const AdminUsers = () => {
                             <button
                               key={emoji}
                               onClick={() => setBadgeIcon(emoji)}
-                              className={`text-xl p-2 rounded transition-all ${
-                                badgeIcon === emoji
-                                  ? "ring-2 ring-primary bg-primary/10 scale-110"
-                                  : "hover:bg-muted"
-                              }`}
+                              className={`text-xl p-2 rounded transition-all ${badgeIcon === emoji
+                                ? "ring-2 ring-primary bg-primary/10 scale-110"
+                                : "hover:bg-muted"
+                                }`}
                             >
                               {emoji}
                             </button>
@@ -864,11 +859,10 @@ export const AdminUsers = () => {
                         setBadgeColorBg(color.bg);
                         setBadgeColorText(color.text);
                       }}
-                      className={`p-3 rounded border-2 text-center text-sm font-medium transition-all ${
-                        badgeColorBg === color.bg
-                          ? "border-primary scale-105"
-                          : "border-transparent hover:border-muted-foreground"
-                      } ${color.bg} ${color.text}`}
+                      className={`p-3 rounded border-2 text-center text-sm font-medium transition-all ${badgeColorBg === color.bg
+                        ? "border-primary scale-105"
+                        : "border-transparent hover:border-muted-foreground"
+                        } ${color.bg} ${color.text}`}
                     >
                       {color.label}
                     </button>

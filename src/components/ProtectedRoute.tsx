@@ -10,12 +10,12 @@ interface ProtectedRouteProps {
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isApproved, setIsApproved] = useState<boolean | null>(null);
+  const [isRejected, setIsRejected] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    const verifyApproval = async (userId: string) => {
+    const checkRejectedStatus = async (userId: string) => {
       try {
         const { data: profile } = await supabase
           .from("profiles")
@@ -24,13 +24,14 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
           .single();
 
         if (mounted) {
-          setIsApproved(profile?.approval_status === "approved");
+          // Only block if explicitly rejected
+          setIsRejected(profile?.approval_status === "rejected");
           setLoading(false);
         }
       } catch (error) {
-        console.error("Error checking approval status:", error);
+        console.error("Error checking account status:", error);
         if (mounted) {
-          setIsApproved(false);
+          setIsRejected(false);
           setLoading(false);
         }
       }
@@ -41,7 +42,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
       if (mounted) {
         setSession(session);
         if (session?.user) {
-          verifyApproval(session.user.id);
+          checkRejectedStatus(session.user.id);
         } else {
           setLoading(false);
         }
@@ -54,9 +55,9 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         if (mounted) {
           setSession(session);
           if (session?.user) {
-            verifyApproval(session.user.id);
+            checkRejectedStatus(session.user.id);
           } else {
-            setIsApproved(null);
+            setIsRejected(false);
             setLoading(false);
           }
         }
@@ -81,8 +82,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/auth" replace />;
   }
 
-  if (isApproved === false) {
-    // Sign out unapproved users and redirect to auth
+  if (isRejected) {
+    // Sign out rejected users and redirect to auth
     supabase.auth.signOut();
     return <Navigate to="/auth" replace />;
   }
