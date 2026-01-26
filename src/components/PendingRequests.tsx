@@ -181,17 +181,17 @@ export const PendingRequests = () => {
     try {
       setProcessingId(requestId);
 
-      // Update request status to rejected
+      // Delete the rejected request to clear the unique constraint
       const { error } = await supabase
         .from("connection_requests")
-        .update({ status: "rejected" })
+        .delete()
         .eq("id", requestId);
 
       if (error) throw error;
 
       toast({
         title: "Request Rejected",
-        description: "The connection request has been declined",
+        description: "The connection request has been declined and removed.",
       });
 
       // Remove from pending list

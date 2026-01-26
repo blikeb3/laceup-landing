@@ -565,7 +565,7 @@ const UserProfile = () => {
 
       const { error } = await supabase
         .from("connection_requests")
-        .update({ status: "rejected" })
+        .delete()
         .eq("id", pendingRequestId);
 
       if (error) throw error;
@@ -575,7 +575,7 @@ const UserProfile = () => {
 
       toast({
         title: "Request Rejected",
-        description: "The connection request has been declined.",
+        description: "The connection request has been declined and removed.",
       });
     } catch (error) {
       console.error("Error rejecting request:", error);
