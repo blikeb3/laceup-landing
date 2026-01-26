@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,14 @@ const Opportunities = () => {
   const [locationFilter, setLocationFilter] = useState<string>("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
   const [careerFilter, setCareerFilter] = useState<string>("");
+  
+  // Infinite scroll state
+  const [hasOpportunitiesMore, setHasOpportunitiesMore] = useState(true);
+  const [loadingOpportunitiesMore, setLoadingOpportunitiesMore] = useState(false);
+  const loadingOpportunitiesRef = useRef(false);
+  const opportunitiesLoadMoreRef = useRef<HTMLDivElement>(null);
+  const PAGE_SIZE = 12;
+  
   const [formData, setFormData] = useState({
     type: "job",
     title: "",
@@ -208,14 +216,26 @@ const Opportunities = () => {
     applyFilters();
   }, [applyFilters]);
 
-  const fetchOpportunities = async () => {
-    const { data, error } = await supabase
-      .from("opportunities")
-      .select("*")
-      .eq("is_active", true)
-      .order("created_at", { ascending: false });
+  const fetchOpportunities = useCallback(async (reset: boolean = true) => {
+    if (!reset && loadingOpportunitiesRef.current) return;
+    
+    try {
+      if (!reset) {
+        loadingOpportunitiesRef.current = true;
+        setLoadingOpportunitiesMore(true);
+      }
+      
+      const from = reset ? 0 : opportunities.length;
+      const to = from + PAGE_SIZE - 1;
+      
+      const { data, error } = await supabase
+        .from("opportunities")
+        .select("*")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .range(from, to);
 
-    if (!error && data) {
+      if (!error && data) {
       // Get all unique user IDs who posted opportunities
       const posterIds = [...new Set(data.map((opp: Record<string, unknown>) => opp.posted_by as string))];
 
@@ -269,10 +289,25 @@ const Opportunities = () => {
           user_badges: badgesMap.get(opp.posted_by as string) || [],
         } as Opportunity;
       });
-      setOpportunities(transformedData);
+      
+      if (reset) {
+        setOpportunities(transformedData);
+      } else {
+        setOpportunities(prev => [...prev, ...transformedData]);
+      }
+      
+      setHasOpportunitiesMore(data.length === PAGE_SIZE);
     }
-    setLoading(false);
-  };
+    } catch (error) {
+      console.error("Error fetching opportunities:", error);
+    } finally {
+      setLoading(false);
+      if (!reset) {
+        loadingOpportunitiesRef.current = false;
+        setLoadingOpportunitiesMore(false);
+      }
+    }
+  }, [opportunities.length]);
 
   const fetchMyApplications = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -578,6 +613,24 @@ const Opportunities = () => {
 
   const canPostOpportunity = currentUserRole === "mentor" || currentUserRole === "employer" || currentUserRole === "admin";
   const canApplyToOpportunity = currentUserRole === "athlete" || currentUserRole === "admin";
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasOpportunitiesMore && !loadingOpportunitiesMore) {
+          fetchOpportunities(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (opportunitiesLoadMoreRef.current) {
+      observer.observe(opportunitiesLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasOpportunitiesMore, loadingOpportunitiesMore, fetchOpportunities]);
 
   if (loading) {
     return (
@@ -1134,6 +1187,13 @@ const Opportunities = () => {
                     </CardContent>
                   </Card>
                 ))}
+              </div>
+            )}
+
+            {/* Infinite scroll trigger for opportunities */}
+            {hasOpportunitiesMore && (
+              <div ref={opportunitiesLoadMoreRef} className="py-8 text-center">
+                {loadingOpportunitiesMore && <LoadingSpinner />}
               </div>
             )}
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,14 +25,33 @@ const LaceHub = () => {
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  
+  // Infinite scroll state
+  const [hasResourcesMore, setHasResourcesMore] = useState(true);
+  const [loadingResourcesMore, setLoadingResourcesMore] = useState(false);
+  const loadingResourcesRef = useRef(false);
+  const resourcesLoadMoreRef = useRef<HTMLDivElement>(null);
+  const PAGE_SIZE = 12;
+  
   const { toast } = useToast();
 
-  const fetchResources = useCallback(async () => {
+  const fetchResources = useCallback(async (reset: boolean = true) => {
+    if (!reset && loadingResourcesRef.current) return;
+    
     try {
+      if (!reset) {
+        loadingResourcesRef.current = true;
+        setLoadingResourcesMore(true);
+      }
+      
+      const from = reset ? 0 : resources.length;
+      const to = from + PAGE_SIZE - 1;
+      
       const { data, error } = await supabase
         .from("resources")
         .select("*")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .range(from, to);
 
       if (error) throw error;
 
@@ -65,7 +84,13 @@ const LaceHub = () => {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         });
 
-      setResources(resourcesWithClicks);
+      if (reset) {
+        setResources(resourcesWithClicks);
+      } else {
+        setResources(prev => [...prev, ...resourcesWithClicks]);
+      }
+      
+      setHasResourcesMore((data || []).length === PAGE_SIZE);
     } catch (error) {
       console.error("Error fetching resources:", error);
       toast({
@@ -75,8 +100,12 @@ const LaceHub = () => {
       });
     } finally {
       setLoading(false);
+      if (!reset) {
+        loadingResourcesRef.current = false;
+        setLoadingResourcesMore(false);
+      }
     }
-  }, [toast]);
+  }, [toast, resources.length]);
 
   useEffect(() => {
     fetchResources();
@@ -152,6 +181,24 @@ const LaceHub = () => {
     : resources.filter(r => r.category === selectedCategory);
 
   const categories = ["all", ...Array.from(new Set(resources.map(r => r.category)))];
+
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasResourcesMore && !loadingResourcesMore) {
+          fetchResources(false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (resourcesLoadMoreRef.current) {
+      observer.observe(resourcesLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasResourcesMore, loadingResourcesMore, fetchResources]);
 
   if (loading) {
     return (
@@ -252,6 +299,13 @@ const LaceHub = () => {
               </CardContent>
             </Card>
           ))}
+        </div>
+      )}
+      
+      {/* Infinite scroll trigger for resources */}
+      {hasResourcesMore && !loading && (
+        <div ref={resourcesLoadMoreRef} className="py-8 text-center">
+          {loadingResourcesMore && <LoadingSpinner />}
         </div>
       )}
     </div>
