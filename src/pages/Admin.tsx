@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MessageSquare, Network, UserCheck, UserX, CheckCircle, Briefcase, Plus, Pencil, Trash2, BarChart3, Upload, Link, Loader2, UserCog, FileSpreadsheet } from "lucide-react";
+import { Users, MessageSquare, Network, CheckCircle, Briefcase, Plus, Pencil, Trash2, Upload, Link, Loader2, UserCog, UserCheck, UserX, BarChart3 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -28,15 +28,12 @@ interface Profile {
   last_name: string | null;
   university: string | null;
   sport: string | null;
-  approval_status: string;
   created_at: string;
   user_role?: string | null;
 }
 
 interface Analytics {
   totalUsers: number;
-  activeUsers: number;
-  pendingUsers: number;
   totalMessages: number;
   totalConnections: number;
 }
@@ -71,17 +68,6 @@ interface Resource {
   logo_url?: string | null;
 }
 
-interface PreapprovedEmail {
-  id: string;
-  email: string;
-  created_at: string;
-  approver: {
-    first_name: string | null;
-    last_name: string | null;
-    email: string;
-  } | null;
-}
-
 const resourceSchema = z.object({
   title: z.string()
     .trim()
@@ -105,7 +91,6 @@ type ResourceFormData = z.infer<typeof resourceSchema>;
 const Admin = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [pendingUsers, setPendingUsers] = useState<Profile[]>([]);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [newFeedbackCount, setNewFeedbackCount] = useState(0);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -125,8 +110,6 @@ const Admin = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics>({
     totalUsers: 0,
-    activeUsers: 0,
-    pendingUsers: 0,
     totalMessages: 0,
     totalConnections: 0,
   });
@@ -134,39 +117,10 @@ const Admin = () => {
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   const [selectedRoleChangeRequest, setSelectedRoleChangeRequest] = useState<RoleChangeRequest | null>(null);
   const [roleChangeDialogOpen, setRoleChangeDialogOpen] = useState(false);
-  const [preapprovedEmails, setPreapprovedEmails] = useState<PreapprovedEmail[]>([]);
-  const [isProcessingPreapprovals, setIsProcessingPreapprovals] = useState(false);
-  const [preapprovalText, setPreapprovalText] = useState("");
-  const [deletingPreapprovalId, setDeletingPreapprovalId] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   const fetchDashboardData = useCallback(async () => {
-    const { data: pending } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("approval_status", "pending")
-      .order("created_at", { ascending: false });
-
-    // Fetch roles for pending users
-    if (pending && pending.length > 0) {
-      const userIds = pending.map(p => p.id);
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds);
-
-      const rolesMap = new Map(rolesData?.map(r => [r.user_id, r.role]) || []);
-      const pendingWithRoles = pending.map(p => ({
-        ...p,
-        user_role: rolesMap.get(p.id) ?? null
-      }));
-
-      setPendingUsers(pendingWithRoles);
-    } else {
-      setPendingUsers([]);
-    }
-
     const { data: allProfilesData } = await supabase
       .from("profiles")
       .select("*");
@@ -191,8 +145,6 @@ const Admin = () => {
 
     setAnalytics({
       totalUsers: allProfilesData?.length || 0,
-      activeUsers: allProfilesData?.filter(p => p.approval_status === "approved").length || 0,
-      pendingUsers: allProfilesData?.filter(p => p.approval_status === "pending").length || 0,
       totalMessages: messages?.length || 0,
       totalConnections: connections?.length || 0,
     });
@@ -257,31 +209,6 @@ const Admin = () => {
     }
   }, [toast]);
 
-  const fetchPreapprovedEmails = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("preapproved_emails")
-        .select(`
-          id,
-          email,
-          created_at,
-          approver:profiles!preapproved_emails_approved_by_fkey(first_name, last_name, email)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-
-      setPreapprovedEmails((data as PreapprovedEmail[]) || []);
-    } catch (error) {
-      console.error("Error fetching pre-approved emails:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load pre-approved emails",
-        variant: "destructive",
-      });
-    }
-  }, [toast]);
-
   const checkAdminAccess = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -312,14 +239,13 @@ const Admin = () => {
       fetchDashboardData();
       fetchResources();
       fetchRoleChangeRequests();
-      fetchPreapprovedEmails();
     } catch (error) {
       console.error("Error checking admin access:", error);
       navigate("/home");
     } finally {
       setLoading(false);
     }
-  }, [navigate, toast, fetchResources, fetchDashboardData, fetchRoleChangeRequests, fetchPreapprovedEmails]);
+  }, [navigate, toast, fetchResources, fetchDashboardData, fetchRoleChangeRequests]);
 
   useEffect(() => {
     checkAdminAccess();
@@ -622,52 +548,6 @@ const Admin = () => {
     setSelectedLogoFile(null);
   };
 
-  const handleApproveUser = async (userId: string) => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ approval_status: "approved" })
-      .eq("id", userId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to approve user.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "User approved successfully.",
-    });
-
-    fetchDashboardData();
-  };
-
-  const handleRejectUser = async (userId: string) => {
-    const { error } = await supabase
-      .from("profiles")
-      .update({ approval_status: "rejected" })
-      .eq("id", userId);
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to reject user.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    toast({
-      title: "Success",
-      description: "User rejected successfully.",
-    });
-
-    fetchDashboardData();
-  };
-
   const getCategoryLabel = (category: string) => {
     return category.split("_").map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
@@ -682,141 +562,6 @@ const Admin = () => {
       ALLOWED_ATTR: [],
       KEEP_CONTENT: true, // Keep text content
     }).trim();
-  };
-
-  const parseEmailsFromCsv = (text: string): string[] => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const candidates = text
-      .split(/[\n,;]+/)
-      .map(entry => entry.trim().toLowerCase())
-      .filter(Boolean);
-
-    return Array.from(new Set(candidates.filter(email => emailRegex.test(email))));
-  };
-
-  const handlePreapprovalUpload = async (file: File | null) => {
-    if (!file) return;
-    setIsProcessingPreapprovals(true);
-
-    try {
-      const text = await file.text();
-      const emails = parseEmailsFromCsv(text);
-
-      if (emails.length === 0) {
-        toast({
-          title: "No valid emails found",
-          description: "Upload a CSV containing at least one valid email address.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase.rpc('upsert_preapproved_emails', {
-        p_emails: emails,
-        p_admin_id: user.id,
-      });
-
-      if (error) throw error;
-
-      const summary = data?.[0];
-
-      toast({
-        title: "Pre-approvals updated",
-        description: `Processed ${summary?.processed_count ?? emails.length} emails, auto-approved ${summary?.auto_approved ?? 0} pending users.`,
-      });
-
-      fetchPreapprovedEmails();
-      fetchDashboardData();
-    } catch (error) {
-      console.error("Error uploading pre-approved emails:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to upload pre-approved emails",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingPreapprovals(false);
-    }
-  };
-
-  const handlePreapprovalTextSubmit = async () => {
-    const emails = parseEmailsFromCsv(preapprovalText);
-
-    if (emails.length === 0) {
-      toast({
-        title: "No valid emails found",
-        description: "Enter a comma, semicolon, or newline separated list of emails.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setIsProcessingPreapprovals(true);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data, error } = await supabase.rpc('upsert_preapproved_emails', {
-        p_emails: emails,
-        p_admin_id: user.id,
-      });
-
-      if (error) throw error;
-
-      const summary = data?.[0];
-
-      toast({
-        title: "Pre-approvals updated",
-        description: `Processed ${summary?.processed_count ?? emails.length} emails, auto-approved ${summary?.auto_approved ?? 0} pending users.`,
-      });
-
-      setPreapprovalText("");
-      fetchPreapprovedEmails();
-      fetchDashboardData();
-    } catch (error) {
-      console.error("Error submitting pre-approved emails:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to submit pre-approved emails",
-        variant: "destructive",
-      });
-    } finally {
-      setIsProcessingPreapprovals(false);
-    }
-  };
-
-  const handleDeletePreapprovedEmail = async (emailId: string) => {
-    if (!confirm("Are you sure you want to delete this pre-approved email?")) return;
-
-    setDeletingPreapprovalId(emailId);
-    try {
-      const { error } = await supabase
-        .from("preapproved_emails")
-        .delete()
-        .eq("id", emailId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Pre-approved email deleted successfully.",
-      });
-
-      fetchPreapprovedEmails();
-    } catch (error) {
-      console.error("Error deleting pre-approved email:", error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete pre-approved email",
-        variant: "destructive",
-      });
-    } finally {
-      setDeletingPreapprovalId(null);
-    }
   };
 
   if (loading) {
@@ -839,7 +584,7 @@ const Admin = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -847,26 +592,6 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.totalUsers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.activeUsers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-            <UserX className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.pendingUsers}</div>
           </CardContent>
         </Card>
 
@@ -891,23 +616,8 @@ const Admin = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="users" className="space-y-6">
+      <Tabs defaultValue="role-changes" className="space-y-6">
         <TabsList className="w-full sm:w-auto flex-wrap h-auto">
-          <TabsTrigger value="users" className="flex-1 sm:flex-none">
-            <Users className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">User Management</span>
-            <span className="sm:hidden">Users</span>
-            {analytics.pendingUsers > 0 && (
-              <Badge variant="destructive" className="ml-2 text-xs">
-                {analytics.pendingUsers}
-              </Badge>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="preapprovals" className="flex-1 sm:flex-none">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Pre-Approvals</span>
-            <span className="sm:hidden">Pre-Approve</span>
-          </TabsTrigger>
           <TabsTrigger value="role-changes" className="flex-1 sm:flex-none">
             <UserCog className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Role Changes</span>
@@ -939,220 +649,6 @@ const Admin = () => {
             )}
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="users">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pending User Approvals</CardTitle>
-              <CardDescription>Review and approve new user registrations</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {pendingUsers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No pending approvals</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto -mx-6 px-6">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Contact Email</TableHead>
-                        <TableHead>University</TableHead>
-                        <TableHead>Sport</TableHead>
-                        <TableHead>Registered</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {pendingUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{getFullName(user.first_name, user.last_name) || "—"}</TableCell>
-                          <TableCell>
-                            {user.user_role ? (
-                              <Badge
-                                variant={user.user_role === 'admin' ? 'destructive' : user.user_role === 'employer' ? 'default' : user.user_role === 'mentor' ? 'secondary' : 'outline'}
-                                className="text-xs"
-                              >
-                                {user.user_role.charAt(0).toUpperCase() + user.user_role.slice(1)}
-                              </Badge>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="font-medium">{user.email}</TableCell>
-                          <TableCell>{user.university || "—"}</TableCell>
-                          <TableCell>{user.sport || "—"}</TableCell>
-                          <TableCell>{formatDateLong(user.created_at)}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary">Pending</Badge>
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleApproveUser(user.id)}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRejectUser(user.id)}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Reject
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="preapprovals">
-          <Card>
-            <CardHeader>
-              <CardTitle>Pre-Approve Users by Email</CardTitle>
-              <CardDescription>Upload a CSV of emails to auto-approve matching pending users and future signups</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <Input
-                  type="file"
-                  accept=".csv"
-                  disabled={isProcessingPreapprovals}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
-                    handlePreapprovalUpload(file);
-                    e.target.value = "";
-                  }}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled
-                  className="justify-start flex-1 sm:flex-none"
-                >
-                  CSV format: one email per cell/row
-                </Button>
-                {isProcessingPreapprovals && (
-                  <div className="flex items-center text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Processing...
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2 space-y-2">
-                  <Label htmlFor="preapproval-text">Or paste emails (comma, semicolon, or newline separated)</Label>
-                  <Textarea
-                    id="preapproval-text"
-                    placeholder="user1@example.com, user2@example.com"
-                    value={preapprovalText}
-                    onChange={(e) => setPreapprovalText(e.target.value)}
-                    rows={4}
-                    disabled={isProcessingPreapprovals}
-                  />
-                </div>
-                <div className="flex sm:flex-col gap-2 justify-end sm:justify-start">
-                  <Button
-                    type="button"
-                    onClick={handlePreapprovalTextSubmit}
-                    disabled={isProcessingPreapprovals}
-                  >
-                    {isProcessingPreapprovals && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                    Submit Emails
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setPreapprovalText("")}
-                    disabled={isProcessingPreapprovals || preapprovalText.length === 0}
-                  >
-                    Clear
-                  </Button>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                Emails are deduplicated and stored with the admin who uploaded them. Pending users with matching emails are approved immediately, and new registrations using these emails will be approved on sign-in.
-              </p>
-
-              <div className="overflow-x-auto -mx-6 px-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Added By</TableHead>
-                      <TableHead>Created</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {preapprovedEmails.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground py-6">
-                          No pre-approved emails yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      preapprovedEmails.map((entry) => {
-                        const userWithEmail = pendingUsers.find(u => u.email?.toLowerCase() === entry.email.toLowerCase()) ||
-                          (allProfiles?.find(p => p.email?.toLowerCase() === entry.email.toLowerCase() && p.approval_status === 'approved'));
-                        return (
-                          <TableRow key={entry.id}>
-                            <TableCell className="font-medium">{entry.email}</TableCell>
-                            <TableCell>
-                              {userWithEmail ? (
-                                <Badge className="bg-green-500/10 text-green-600 border border-green-500/20">User signed up</Badge>
-                              ) : (
-                                <span className="text-muted-foreground text-sm">Not yet used</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {entry.approver ? (
-                                <div>
-                                  <div className="font-medium">{getFullName(entry.approver.first_name, entry.approver.last_name) || "Admin"}</div>
-                                  <div className="text-xs text-muted-foreground">{entry.approver.email}</div>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
-                            </TableCell>
-                            <TableCell>{formatDateLong(entry.created_at)}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDeletePreapprovedEmail(entry.id)}
-                                disabled={deletingPreapprovalId === entry.id}
-                              >
-                                {deletingPreapprovalId === entry.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="role-changes">
           <Card>
