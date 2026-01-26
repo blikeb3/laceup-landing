@@ -1473,14 +1473,6 @@ const Home = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-1 mb-1">
                           <p className="font-medium text-sm truncate">{getFullName(profile.first_name, profile.last_name) || 'User'}</p>
-                          {profile.user_is_admin && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1 py-0 h-5"
-                            >
-                              Admin
-                            </Badge>
-                          )}
                           {profile.user_role && (
                             <Badge
                               className="text-xs px-1 py-0 h-5 bg-navy text-gold border-navy"
