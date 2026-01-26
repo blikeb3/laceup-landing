@@ -36,7 +36,8 @@ interface Profile {
 interface Analytics {
   totalUsers: number;
   activeUsers: number;
-  pendingUsers: number;
+  referralsSent: number;
+  referralsAccepted: number;
   totalMessages: number;
   totalConnections: number;
 }
@@ -126,7 +127,8 @@ const Admin = () => {
   const [analytics, setAnalytics] = useState<Analytics>({
     totalUsers: 0,
     activeUsers: 0,
-    pendingUsers: 0,
+    referralsSent: 0,
+    referralsAccepted: 0,
     totalMessages: 0,
     totalConnections: 0,
   });
@@ -181,6 +183,16 @@ const Admin = () => {
       .from("connections")
       .select("id", { count: "exact" });
 
+    // Fetch referrals data
+    const { data: referralsSentData } = await supabase
+      .from("referrals")
+      .select("id", { count: "exact" });
+
+    const { data: referralsAcceptedData } = await supabase
+      .from("referrals")
+      .select("id", { count: "exact" })
+      .eq("status", "accepted");
+
     // Fetch new feedback count
     const { data: newFeedback } = await supabase
       .from("feedback")
@@ -192,7 +204,8 @@ const Admin = () => {
     setAnalytics({
       totalUsers: allProfilesData?.length || 0,
       activeUsers: allProfilesData?.filter(p => p.approval_status === "approved").length || 0,
-      pendingUsers: allProfilesData?.filter(p => p.approval_status === "pending").length || 0,
+      referralsSent: referralsSentData?.length || 0,
+      referralsAccepted: referralsAcceptedData?.length || 0,
       totalMessages: messages?.length || 0,
       totalConnections: connections?.length || 0,
     });
@@ -839,7 +852,7 @@ const Admin = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -862,11 +875,21 @@ const Admin = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-            <UserX className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Referrals Sent</CardTitle>
+            <Network className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.pendingUsers}</div>
+            <div className="text-2xl font-bold">{analytics.referralsSent}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Referrals Signed Up</CardTitle>
+            <UserCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{analytics.referralsAccepted}</div>
           </CardContent>
         </Card>
 
@@ -897,11 +920,6 @@ const Admin = () => {
             <Users className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">User Management</span>
             <span className="sm:hidden">Users</span>
-            {analytics.pendingUsers > 0 && (
-              <Badge variant="destructive" className="ml-2 text-xs">
-                {analytics.pendingUsers}
-              </Badge>
-            )}
           </TabsTrigger>
           <TabsTrigger value="preapprovals" className="flex-1 sm:flex-none">
             <FileSpreadsheet className="h-4 w-4 mr-2" />
