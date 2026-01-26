@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Users, MessageSquare, Network, CheckCircle, Briefcase, Plus, Pencil, Trash2, Upload, Link, Loader2, UserCog, UserCheck, UserX, BarChart3 } from "lucide-react";
+import { Users, MessageSquare, Network, Briefcase, Plus, Pencil, Trash2, Upload, Link, Loader2, UserCog, UserCheck, UserX, BarChart3, FileSpreadsheet } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useNavigate } from "react-router-dom";
 import { z } from "zod";
@@ -667,16 +667,6 @@ const Admin = () => {
 
       <Tabs defaultValue="role-changes" className="space-y-6">
         <TabsList className="w-full sm:w-auto flex-wrap h-auto">
-          <TabsTrigger value="users" className="flex-1 sm:flex-none">
-            <Users className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">User Management</span>
-            <span className="sm:hidden">Users</span>
-          </TabsTrigger>
-          <TabsTrigger value="preapprovals" className="flex-1 sm:flex-none">
-            <FileSpreadsheet className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">Pre-Approvals</span>
-            <span className="sm:hidden">Pre-Approve</span>
-          </TabsTrigger>
           <TabsTrigger value="role-changes" className="flex-1 sm:flex-none">
             <UserCog className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">Role Changes</span>
