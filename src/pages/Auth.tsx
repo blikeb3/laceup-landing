@@ -11,6 +11,8 @@ import { isPasswordExposed } from "@/lib/passwordSecurity";
 import { checkRateLimit, recordAttempt, clearRateLimit, formatRemainingTime } from "@/lib/rateLimit";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { signInSchema, signUpSchema } from "@/lib/authSchemas";
+import { MfaVerifyDialog } from "@/components/MfaVerifyDialog";
+import { createMfaChallenge, verifyMfaCode, verifyBackupCode } from "@/lib/mfaHelpers";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -33,6 +35,10 @@ const Auth = () => {
   const defaultTab = tabParam === "signup" || referralTokenParam ? "signup" : "signin";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [referralToken, setReferralToken] = useState<string | null>(referralTokenParam);
+  const [showMfaDialog, setShowMfaDialog] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = searchParams.get("ref");
@@ -47,7 +53,13 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/home");
+        // Check if MFA is required before redirecting
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        // Only redirect if MFA is not required OR user is already at AAL2
+        if (aalData?.nextLevel === aalData?.currentLevel) {
+          navigate("/home");
+        }
       }
     };
     checkUser();
@@ -55,7 +67,14 @@ const Auth = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/home");
+        // Check if MFA verification is still needed (run async check without blocking)
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data: aalData }) => {
+          // Only redirect if MFA is not required OR user has completed MFA (AAL2)
+          // This prevents redirecting before MFA dialog is shown
+          if (aalData?.nextLevel === aalData?.currentLevel) {
+            navigate("/home");
+          }
+        });
       }
     });
 
@@ -253,7 +272,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -279,6 +298,38 @@ const Auth = () => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Check if user has MFA enabled
+      const session = data?.session;
+      const authUser = data?.user;
+
+      if (authUser && session) {
+        // Check authentication assurance level (AAL)
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        // If user has MFA factors but current AAL is aal1 (only password), need to verify MFA
+        if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel === 'aal1') {
+          // Get the first TOTP factor
+          const { data: factorsData } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factorsData?.totp?.[0];
+
+          if (totpFactor) {
+            // Store user ID and factor info for MFA verification
+            setPendingUserId(authUser.id);
+            setMfaFactorId(totpFactor.id);
+
+            // Create a challenge for the user to verify
+            const challengeResult = await createMfaChallenge(totpFactor.id);
+
+            if (challengeResult.success && challengeResult.challengeId) {
+              setMfaChallengeId(challengeResult.challengeId);
+              setShowMfaDialog(true);
+              setLoading(false);
+              return; // Stop here and wait for MFA verification
+            }
+          }
+        }
       }
 
       // Clear rate limit on successful login (only if not localhost)
@@ -353,8 +404,148 @@ const Auth = () => {
     }
   };
 
+  const handleMfaVerify = async (code: string) => {
+    if (!mfaFactorId || !mfaChallengeId) {
+      return {
+        success: false,
+        error: "MFA verification not initialized",
+      };
+    }
+
+    const result = await verifyMfaCode(mfaFactorId, mfaChallengeId, code);
+
+    if (result.success) {
+      setShowMfaDialog(false);
+
+      // Continue with approval checks
+      const { data: approvalData, error: approvalError } = await supabase
+        .rpc('check_user_approval');
+
+      if (approvalError || !approvalData || !approvalData[0]) {
+        await supabase.auth.signOut();
+        toast({
+          title: "Error",
+          description: "Failed to verify account status. Please try again.",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
+
+      const { is_approved, approval_status } = approvalData[0];
+
+      if (!is_approved) {
+        await supabase.auth.signOut();
+
+        if (approval_status === "pending") {
+          toast({
+            title: "Pending Approval",
+            description: "Your account is pending admin approval. Please wait.",
+            variant: "destructive",
+          });
+        } else if (approval_status === "rejected") {
+          toast({
+            title: "Access Denied",
+            description: "Your account registration was not approved.",
+            variant: "destructive",
+          });
+        }
+        return { success: false };
+      }
+
+      toast({
+        title: "Success",
+        description: "Signed in successfully",
+      });
+
+      return { success: true };
+    }
+
+    return result;
+  };
+
+  const handleBackupCodeVerify = async (code: string) => {
+    if (!pendingUserId) {
+      return {
+        success: false,
+        error: "User verification not initialized",
+      };
+    }
+
+    const result = await verifyBackupCode(pendingUserId, code);
+
+    if (result.success) {
+      setShowMfaDialog(false);
+
+      // Backup codes are our custom implementation - they don't upgrade Supabase's AAL
+      // But we've verified the user's identity, so proceed with approval checks
+
+      // Check approval status
+      const { data: approvalData, error: approvalError } = await supabase
+        .rpc('check_user_approval');
+
+      if (approvalError || !approvalData || !approvalData[0]) {
+        await supabase.auth.signOut();
+        toast({
+          title: "Error",
+          description: "Failed to verify account status. Please try again.",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
+
+      const { is_approved, approval_status } = approvalData[0];
+
+      if (!is_approved) {
+        await supabase.auth.signOut();
+
+        if (approval_status === "pending") {
+          toast({
+            title: "Pending Approval",
+            description: "Your account is pending admin approval. Please wait.",
+            variant: "destructive",
+          });
+        } else if (approval_status === "rejected") {
+          toast({
+            title: "Access Denied",
+            description: "Your account registration was not approved.",
+            variant: "destructive",
+          });
+        }
+        return { success: false };
+      }
+
+      toast({
+        title: "Success",
+        description: "Signed in with backup code. Please set up a new authenticator.",
+      });
+
+      // Navigate to home - we've verified identity via backup code
+      navigate("/home");
+
+      return { success: true };
+    }
+
+    return result;
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">{showMfaDialog && (
+      <MfaVerifyDialog
+        open={showMfaDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            // If user cancels MFA, sign them out
+            supabase.auth.signOut();
+            setShowMfaDialog(false);
+            setMfaFactorId(null);
+            setMfaChallengeId(null);
+            setPendingUserId(null);
+          }
+        }}
+        onVerify={handleMfaVerify}
+        onUseBackupCode={handleBackupCodeVerify}
+      />
+    )}
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome</CardTitle>
