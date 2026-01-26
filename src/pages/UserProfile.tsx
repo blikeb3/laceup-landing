@@ -486,13 +486,13 @@ const UserProfile = () => {
     try {
       setConnectionLoading(true);
 
-      // Update request status to accepted
-      const { error: updateError } = await supabase
+      // Remove the request once accepted to avoid future duplicates
+      const { error: deleteRequestError } = await supabase
         .from("connection_requests")
-        .update({ status: "accepted" })
+        .delete()
         .eq("id", pendingRequestId);
 
-      if (updateError) throw updateError;
+      if (deleteRequestError) throw deleteRequestError;
 
       // Create mutual connections
       const { error: conn1Error } = await supabase
