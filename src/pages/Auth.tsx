@@ -11,6 +11,8 @@ import { isPasswordExposed } from "@/lib/passwordSecurity";
 import { checkRateLimit, recordAttempt, clearRateLimit, formatRemainingTime } from "@/lib/rateLimit";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { signInSchema, signUpSchema } from "@/lib/authSchemas";
+import { MfaVerifyDialog } from "@/components/MfaVerifyDialog";
+import { createMfaChallenge, verifyMfaCode, verifyBackupCode } from "@/lib/mfaHelpers";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -33,6 +35,10 @@ const Auth = () => {
   const defaultTab = tabParam === "signup" || referralTokenParam ? "signup" : "signin";
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [referralToken, setReferralToken] = useState<string | null>(referralTokenParam);
+  const [showMfaDialog, setShowMfaDialog] = useState(false);
+  const [mfaFactorId, setMfaFactorId] = useState<string | null>(null);
+  const [mfaChallengeId, setMfaChallengeId] = useState<string | null>(null);
+  const [pendingUserId, setPendingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     const token = searchParams.get("ref");
@@ -47,7 +53,13 @@ const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/home");
+        // Check if MFA is required before redirecting
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        // Only redirect if MFA is not required OR user is already at AAL2
+        if (aalData?.nextLevel === aalData?.currentLevel) {
+          navigate("/home");
+        }
       }
     };
     checkUser();
@@ -55,7 +67,14 @@ const Auth = () => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
-        navigate("/home");
+        // Check if MFA verification is still needed (run async check without blocking)
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel().then(({ data: aalData }) => {
+          // Only redirect if MFA is not required OR user has completed MFA (AAL2)
+          // This prevents redirecting before MFA dialog is shown
+          if (aalData?.nextLevel === aalData?.currentLevel) {
+            navigate("/home");
+          }
+        });
       }
     });
 
@@ -147,20 +166,6 @@ const Auth = () => {
           });
         }
 
-        // Check if email is in preapproved_emails table and auto-approve
-        // Using RPC function to bypass RLS restrictions for unauthenticated users
-        const { data: isAutoApproved, error: autoApproveError } = await supabase
-          .rpc('auto_approve_if_preapproved', {
-            p_user_id: user.id,
-            p_email: email
-          });
-
-        if (autoApproveError) {
-          console.error("Error checking/approving preapproved user:", autoApproveError);
-        }
-
-        const wasAutoApproved = isAutoApproved === true;
-
         if (referralToken) {
           const { error: referralError } = await supabase.functions.invoke('referral-joined', {
             body: { token: referralToken, userId: user.id, userEmail: email }
@@ -180,15 +185,13 @@ const Auth = () => {
 
         toast({
           title: "Success!",
-          description: wasAutoApproved
-            ? "Account created and approved! You can now sign in after verifying your email."
-            : "Account created. Please wait for admin approval to access the platform.",
+          description: "Account created! Please check your email to verify your account, then sign in.",
         });
       } else {
         console.error("Error: No user returned from signup");
         toast({
           title: "Success!",
-          description: "Account created. Please wait for admin approval to access the platform.",
+          description: "Account created! Please check your email to verify your account.",
         });
       }
 
@@ -253,7 +256,7 @@ const Auth = () => {
         return;
       }
 
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -281,6 +284,38 @@ const Auth = () => {
         return;
       }
 
+      // Check if user has MFA enabled
+      const session = data?.session;
+      const authUser = data?.user;
+
+      if (authUser && session) {
+        // Check authentication assurance level (AAL)
+        const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+        // If user has MFA factors but current AAL is aal1 (only password), need to verify MFA
+        if (aalData?.nextLevel === 'aal2' && aalData?.currentLevel === 'aal1') {
+          // Get the first TOTP factor
+          const { data: factorsData } = await supabase.auth.mfa.listFactors();
+          const totpFactor = factorsData?.totp?.[0];
+
+          if (totpFactor) {
+            // Store user ID and factor info for MFA verification
+            setPendingUserId(authUser.id);
+            setMfaFactorId(totpFactor.id);
+
+            // Create a challenge for the user to verify
+            const challengeResult = await createMfaChallenge(totpFactor.id);
+
+            if (challengeResult.success && challengeResult.challengeId) {
+              setMfaChallengeId(challengeResult.challengeId);
+              setShowMfaDialog(true);
+              setLoading(false);
+              return; // Stop here and wait for MFA verification
+            }
+          }
+        }
+      }
+
       // Clear rate limit on successful login (only if not localhost)
       if (!isLocalhost) {
         const rateLimitKey = `signin:${email.toLowerCase()}`;
@@ -288,43 +323,7 @@ const Auth = () => {
       }
       setLoading(false);
 
-      // SERVER-SIDE VERIFICATION: Check approval status via server function
-      // This prevents API manipulation or session replay bypassing frontend checks
-      const { data: approvalData, error: approvalError } = await supabase
-        .rpc('check_user_approval');
-
-      if (approvalError || !approvalData || !approvalData[0]) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Error",
-          description: "Failed to verify account status. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { is_approved, approval_status } = approvalData[0];
-
-      if (!is_approved) {
-        await supabase.auth.signOut();
-
-        if (approval_status === "pending") {
-          toast({
-            title: "Pending Approval",
-            description: "Your account is pending admin approval. Please wait.",
-            variant: "destructive",
-          });
-        } else if (approval_status === "rejected") {
-          toast({
-            title: "Access Denied",
-            description: "Your account registration was not approved.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      // FALLBACK: Also check via direct profile query as additional security layer
+      // Check if user account has been rejected
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const { data: profile } = await supabase
@@ -333,16 +332,19 @@ const Auth = () => {
           .eq("id", user.id)
           .single();
 
-        if (profile?.approval_status !== "approved") {
+        if (profile?.approval_status === "rejected") {
           await supabase.auth.signOut();
           toast({
             title: "Access Denied",
-            description: "Your account status does not permit access.",
+            description: "Your account has been deactivated. Please contact support.",
             variant: "destructive",
           });
           return;
         }
       }
+
+      // Navigate to home
+      navigate("/home");
     } catch (error) {
       setLoading(false);
       toast({
@@ -353,8 +355,111 @@ const Auth = () => {
     }
   };
 
+  const handleMfaVerify = async (code: string) => {
+    if (!mfaFactorId || !mfaChallengeId) {
+      return {
+        success: false,
+        error: "MFA verification not initialized",
+      };
+    }
+
+    const result = await verifyMfaCode(mfaFactorId, mfaChallengeId, code);
+
+    if (result.success) {
+      setShowMfaDialog(false);
+
+      // Check if user account has been rejected
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("approval_status")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.approval_status === "rejected") {
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "Your account has been deactivated. Please contact support.",
+            variant: "destructive",
+          });
+          return { success: false };
+        }
+      }
+
+      toast({
+        title: "Success",
+        description: "Signed in successfully",
+      });
+
+      navigate("/home");
+      return { success: true };
+    }
+
+    return result;
+  };
+
+  const handleBackupCodeVerify = async (code: string) => {
+    if (!pendingUserId) {
+      return {
+        success: false,
+        error: "User verification not initialized",
+      };
+    }
+
+    const result = await verifyBackupCode(pendingUserId, code);
+
+    if (result.success) {
+      setShowMfaDialog(false);
+
+      // Check if user account has been rejected
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("approval_status")
+        .eq("id", pendingUserId)
+        .single();
+
+      if (profile?.approval_status === "rejected") {
+        await supabase.auth.signOut();
+        toast({
+          title: "Access Denied",
+          description: "Your account has been deactivated. Please contact support.",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
+
+      toast({
+        title: "Success",
+        description: "Signed in with backup code. Please set up a new authenticator.",
+      });
+
+      navigate("/home");
+      return { success: true };
+    }
+
+    return result;
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">{showMfaDialog && (
+      <MfaVerifyDialog
+        open={showMfaDialog}
+        onOpenChange={(open) => {
+          if (!open) {
+            // If user cancels MFA, sign them out
+            supabase.auth.signOut();
+            setShowMfaDialog(false);
+            setMfaFactorId(null);
+            setMfaChallengeId(null);
+            setPendingUserId(null);
+          }
+        }}
+        onVerify={handleMfaVerify}
+        onUseBackupCode={handleBackupCodeVerify}
+      />
+    )}
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>Welcome</CardTitle>
@@ -513,9 +618,6 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
-                <p className="text-sm text-muted-foreground text-center">
-                  Your account will require admin approval before you can access the platform.
-                </p>
               </form>
             </TabsContent>
           </Tabs>
