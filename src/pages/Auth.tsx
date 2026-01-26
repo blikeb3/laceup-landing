@@ -323,7 +323,27 @@ const Auth = () => {
       }
       setLoading(false);
 
-      // Navigate to home - no approval required
+      // Check if user account has been rejected
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("approval_status")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.approval_status === "rejected") {
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "Your account has been deactivated. Please contact support.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      // Navigate to home
       navigate("/home");
     } catch (error) {
       setLoading(false);
@@ -347,6 +367,26 @@ const Auth = () => {
 
     if (result.success) {
       setShowMfaDialog(false);
+
+      // Check if user account has been rejected
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("approval_status")
+          .eq("id", user.id)
+          .single();
+
+        if (profile?.approval_status === "rejected") {
+          await supabase.auth.signOut();
+          toast({
+            title: "Access Denied",
+            description: "Your account has been deactivated. Please contact support.",
+            variant: "destructive",
+          });
+          return { success: false };
+        }
+      }
 
       toast({
         title: "Success",
@@ -372,6 +412,23 @@ const Auth = () => {
 
     if (result.success) {
       setShowMfaDialog(false);
+
+      // Check if user account has been rejected
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("approval_status")
+        .eq("id", pendingUserId)
+        .single();
+
+      if (profile?.approval_status === "rejected") {
+        await supabase.auth.signOut();
+        toast({
+          title: "Access Denied",
+          description: "Your account has been deactivated. Please contact support.",
+          variant: "destructive",
+        });
+        return { success: false };
+      }
 
       toast({
         title: "Success",
