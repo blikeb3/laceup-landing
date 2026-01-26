@@ -165,14 +165,7 @@ export const PostMediaViewer = ({
               <div className="flex-1">
                 <div className="flex flex-wrap items-center gap-1 mb-1">
                   <p className="font-semibold text-sm">{postAuthorName}</p>
-                  {postAuthorIsAdmin && (
-                    <Badge
-                      variant="destructive"
-                      className="text-xs px-1 py-0"
-                    >
-                      Admin
-                    </Badge>
-                  )}
+
                   {postAuthorRole && (
                     <Badge
                       className="text-xs px-1 py-0 bg-navy text-gold border-navy"
@@ -276,14 +269,7 @@ export const PostMediaViewer = ({
                         <Link to={`/profile/${comment.user_id}`} className="font-semibold text-xs hover:text-gold transition-colors">
                           {getDisplayName(comment.profiles?.first_name, comment.profiles?.last_name)}
                         </Link>
-                        {comment.user_is_admin && (
-                          <Badge
-                            variant="destructive"
-                            className="text-xs px-1 py-0"
-                          >
-                            Admin
-                          </Badge>
-                        )}
+
                         {comment.user_role && (
                           <Badge
                             className="text-xs px-1 py-0 bg-navy text-gold border-navy"

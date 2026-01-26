@@ -58,14 +58,6 @@ export const ConversationItem = ({ conversation, isSelected, onClick }: Conversa
                             ) : (
                                 <h4 className="font-semibold truncate">{conversation.name}</h4>
                             )}
-                            {conversation.user_is_admin && (
-                                <Badge
-                                    variant="destructive"
-                                    className="text-xs flex-shrink-0"
-                                >
-                                    Admin
-                                </Badge>
-                            )}
                             {conversation.user_role && (
                                 <Badge
                                     className="text-xs flex-shrink-0 bg-navy text-gold border-navy"
