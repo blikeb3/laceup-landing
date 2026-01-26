@@ -366,25 +366,19 @@ const Home = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check if they already have a connection to us (meaning they sent a request first)
-      const { data: existingConnection } = await supabase
-        .from("connections")
-        .select("id")
-        .eq("user_id", profileId)
-        .eq("connected_user_id", user.id)
-        .single();
-
-      const { error } = await supabase
-        .from("connections")
+      // Create a new connection request
+      const { error: requestError } = await supabase
+        .from("connection_requests")
         .insert({
-          user_id: user.id,
-          connected_user_id: profileId,
+          requester_id: user.id,
+          receiver_id: profileId,
+          status: "pending",
         });
 
-      if (error) throw error;
+      if (requestError) throw requestError;
 
       toast({
-        title: "Connection sent!",
+        title: "Request Sent!",
         description: "Your connection request has been sent.",
       });
 
@@ -393,19 +387,12 @@ const Home = () => {
       // Send notification
       if (currentUser) {
         const currentUserName = getFullName(currentUser.first_name, currentUser.last_name);
-
-        // If they already connected to us, notify them we accepted
-        // Otherwise, notify them of the new connection request
-        if (existingConnection) {
-          await notifyConnectionAccepted(profileId, currentUserName, user.id);
-        } else {
-          await notifyConnectionRequest(profileId, currentUserName, user.id);
-        }
+        await notifyConnectionRequest(profileId, currentUserName, user.id);
       }
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to connect",
+        description: error instanceof Error ? error.message : "Failed to send connection request",
         variant: "destructive",
       });
     }
