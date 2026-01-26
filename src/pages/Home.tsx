@@ -271,7 +271,8 @@ const Home = () => {
       let query = supabase
         .from("profiles")
         .select("id, first_name, last_name, avatar_url, university, sport, skills")
-        .neq("id", userId);
+        .neq("id", userId)
+        .neq("approval_status", "rejected");
 
       // Filter out existing connections
       if (connectedIds.length > 0) {
