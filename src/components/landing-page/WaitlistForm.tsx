@@ -7,7 +7,18 @@ import { Card } from "../ui/card";
 import { CheckCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Replace this with your Google Apps Script Web App URL
+/**
+ * Google Apps Script Web App URL for waitlist submissions.
+ * 
+ * SECURITY NOTE: This URL points to a Google Apps Script deployment, not a direct API.
+ * The Apps Script handles authentication to Google Sheets internally, so no API keys
+ * are exposed in this frontend code. This is a secure pattern.
+ * 
+ * To set up, see: src/GoogleSheetsSetup.md
+ * 
+ * Alternative: Create a Supabase Edge Function to handle waitlist submissions
+ * and store directly in the database for better data ownership.
+ */
 const GOOGLE_SHEET_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL";
 
 export function WaitlistForm() {
