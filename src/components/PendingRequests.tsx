@@ -95,13 +95,13 @@ export const PendingRequests = () => {
     try {
       setProcessingId(requestId);
 
-      // Update request status to accepted
-      const { error: updateError } = await supabase
+      // Remove the request once accepted to avoid future duplicates
+      const { error: deleteRequestError } = await supabase
         .from("connection_requests")
-        .update({ status: "accepted" })
+        .delete()
         .eq("id", requestId);
 
-      if (updateError) throw updateError;
+      if (deleteRequestError) throw deleteRequestError;
 
       // Create mutual connection
       const { error: conn1Error } = await supabase
