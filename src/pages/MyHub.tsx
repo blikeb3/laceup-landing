@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -70,7 +70,25 @@ const MyHub = () => {
   const [referralDialogOpen, setReferralDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [suggestionsSearchQuery, setSuggestionsSearchQuery] = useState<string>("");
+  
+  // Infinite scroll state
+  const [hasSuggestionsMore, setHasSuggestionsMore] = useState(true);
+  const [hasConnectionsMore, setHasConnectionsMore] = useState(true);
+  const [hasGroupsMore, setHasGroupsMore] = useState(true);
+  const [loadingSuggestionsMore, setLoadingSuggestionsMore] = useState(false);
+  const [loadingConnectionsMore, setLoadingConnectionsMore] = useState(false);
+  const [loadingGroupsMore, setLoadingGroupsMore] = useState(false);
+  
+  const loadingSuggestionsRef = useRef(false);
+  const loadingConnectionsRef = useRef(false);
+  const loadingGroupsRef = useRef(false);
+  const suggestionsLoadMoreRef = useRef<HTMLDivElement>(null);
+  const connectionsLoadMoreRef = useRef<HTMLDivElement>(null);
+  const groupsLoadMoreRef = useRef<HTMLDivElement>(null);
+  
   const { toast } = useToast();
+  
+  const PAGE_SIZE = 12;
 
   // Check URL parameters for search query
   const searchParams = new URLSearchParams(location.search);
@@ -118,8 +136,15 @@ const MyHub = () => {
     }
   }, [urlSearchQuery]);
 
-  const fetchSuggestions = async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }) => {
+  const fetchSuggestions = useCallback(async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }, reset: boolean = true) => {
+    if (!reset && loadingSuggestionsRef.current) return;
+    
     try {
+      if (!reset) {
+        loadingSuggestionsRef.current = true;
+        setLoadingSuggestionsMore(true);
+      }
+      
       // Get existing connections
       const { data: existingConnections } = await supabase
         .from("connections")
@@ -131,7 +156,7 @@ const MyHub = () => {
       // Fetch profiles with matching criteria
       let query = supabase
         .from("profiles")
-        .select("*")
+        .select("*", { count: "exact" })
         .neq("id", userId);
 
       // Filter out existing connections
@@ -139,7 +164,7 @@ const MyHub = () => {
         query = query.not("id", "in", `(${connectedIds.join(",")})`);
       }
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
 
       if (error) throw error;
 
@@ -213,18 +238,45 @@ const MyHub = () => {
         };
       });
 
-      setSuggestions(suggestionsWithRoles);
+      // Paginate the sorted results
+      const from = reset ? 0 : suggestions.length;
+      const to = from + PAGE_SIZE - 1;
+      const paginatedSuggestions = suggestionsWithRoles.slice(from, to + 1);
+      
+      if (reset) {
+        setSuggestions(paginatedSuggestions);
+      } else {
+        setSuggestions(prev => [...prev, ...paginatedSuggestions]);
+      }
+      
+      setHasSuggestionsMore(to + 1 < suggestionsWithRoles.length);
     } catch (error) {
       console.error("Error fetching suggestions:", error);
+    } finally {
+      if (!reset) {
+        loadingSuggestionsRef.current = false;
+        setLoadingSuggestionsMore(false);
+      }
     }
-  };
+  }, [suggestions.length]);
 
-  const fetchConnections = async (userId: string) => {
+  const fetchConnections = useCallback(async (userId: string, reset: boolean = true) => {
+    if (!reset && loadingConnectionsRef.current) return;
+    
     try {
+      if (!reset) {
+        loadingConnectionsRef.current = true;
+        setLoadingConnectionsMore(true);
+      }
+      
+      const from = reset ? 0 : connections.length;
+      const to = from + PAGE_SIZE - 1;
+      
       const { data: connectionData, error: connectionsError } = await supabase
         .from("connections")
         .select("connected_user_id")
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .range(from, to);
 
       if (connectionsError) throw connectionsError;
 
@@ -263,20 +315,45 @@ const MyHub = () => {
           };
         });
 
-        setConnections(connectionsWithRoles);
+        if (reset) {
+          setConnections(connectionsWithRoles);
+        } else {
+          setConnections(prev => [...prev, ...connectionsWithRoles]);
+        }
+        
+        setHasConnectionsMore((connectionData?.length || 0) === PAGE_SIZE);
+      } else {
+        setHasConnectionsMore(false);
+        if (reset) setConnections([]);
       }
     } catch (error) {
       console.error("Error fetching connections:", error);
+    } finally {
+      if (!reset) {
+        loadingConnectionsRef.current = false;
+        setLoadingConnectionsMore(false);
+      }
     }
-  };
+  }, [connections.length]);
 
-  const fetchGroups = async (userId: string) => {
+  const fetchGroups = useCallback(async (userId: string, reset: boolean = true) => {
+    if (!reset && loadingGroupsRef.current) return;
+    
     try {
+      if (!reset) {
+        loadingGroupsRef.current = true;
+        setLoadingGroupsMore(true);
+      }
+      
+      const from = reset ? 0 : groups.length;
+      const to = from + PAGE_SIZE - 1;
+      
       // Fetch all active groups
       const { data: allGroups, error: groupsError } = await supabase
         .from("groups")
         .select("*")
-        .eq("is_active", true);
+        .eq("is_active", true)
+        .range(from, to);
 
       if (groupsError) throw groupsError;
 
@@ -304,11 +381,22 @@ const MyHub = () => {
         is_member: memberGroupIds.includes(group.id),
       }));
 
-      setGroups(groupsWithMeta);
+      if (reset) {
+        setGroups(groupsWithMeta);
+      } else {
+        setGroups(prev => [...prev, ...groupsWithMeta]);
+      }
+      
+      setHasGroupsMore((allGroups || []).length === PAGE_SIZE);
     } catch (error) {
       console.error("Error fetching groups:", error);
+    } finally {
+      if (!reset) {
+        loadingGroupsRef.current = false;
+        setLoadingGroupsMore(false);
+      }
     }
-  };
+  }, [groups.length]);
 
   const handleConnect = async (profileId: string) => {
     try {
@@ -393,6 +481,72 @@ const MyHub = () => {
       });
     }
   };
+
+  // Load more handlers - removed, using IntersectionObserver directly
+
+  // Infinite scroll observers
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasSuggestionsMore && !loadingSuggestionsMore) {
+          supabase.auth.getUser().then(async ({ data: { user } }) => {
+            if (!user) return;
+            
+            const { data: currentProfile } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("id", user.id)
+              .single();
+              
+            if (currentProfile) {
+              await fetchSuggestions(user.id, currentProfile, false);
+            }
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (suggestionsLoadMoreRef.current) {
+      observer.observe(suggestionsLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasSuggestionsMore, loadingSuggestionsMore, fetchSuggestions]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasConnectionsMore && !loadingConnectionsMore && currentUserId) {
+          fetchConnections(currentUserId, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (connectionsLoadMoreRef.current) {
+      observer.observe(connectionsLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, fetchConnections]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasGroupsMore && !loadingGroupsMore && currentUserId) {
+          fetchGroups(currentUserId, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (groupsLoadMoreRef.current) {
+      observer.observe(groupsLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasGroupsMore, loadingGroupsMore, currentUserId, fetchGroups]);
 
   const handleJoinGroup = async (groupId: string) => {
     try {
@@ -554,36 +708,29 @@ const MyHub = () => {
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredConnections.map((connection) => (
-                  <Card key={connection.id}>
-                    <CardHeader>
-                      <Link to={`/profile/${connection.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                        <Avatar className="h-16 w-16">
-                          <AvatarImage src={connection.avatar_url || undefined} />
-                          <AvatarFallback>
-                            {getInitials(connection.first_name, connection.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(connection.first_name, connection.last_name) || 'User'}</CardTitle>
-                            {connection.user_is_admin && (
-                              <Badge
-                                variant="destructive"
-                                className="text-xs px-1.5 py-0.5"
-                              >
-                                Admin
-                              </Badge>
-                            )}
-                            {connection.user_role && (
-                              <Badge
-                                className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
-                              >
-                                {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
-                              </Badge>
-                            )}
-                            {connection.user_badges && connection.user_badges.map((userBadge) => {
-                              const badge = userBadge.badges;
-                              if (!badge) return null;
+                <Card key={connection.id}>
+                  <CardHeader>
+                    <Link to={`/profile/${connection.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={connection.avatar_url || undefined} />
+                        <AvatarFallback>
+                          {getInitials(connection.first_name, connection.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(connection.first_name, connection.last_name) || 'User'}</CardTitle>
+
+                          {connection.user_role && (
+                            <Badge
+                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
+                            >
+                              {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
+                            </Badge>
+                          )}
+                          {connection.user_badges && connection.user_badges.map((userBadge) => {
+                            const badge = userBadge.badges;
+                            if (!badge) return null;
 
                               return (
                                 <TooltipProvider key={userBadge.id}>
@@ -646,6 +793,13 @@ const MyHub = () => {
               </div>
             );
           })()}
+          
+          {/* Infinite scroll trigger for connections */}
+          {hasConnectionsMore && (
+            <div ref={connectionsLoadMoreRef} className="py-8 text-center">
+              {loadingConnectionsMore && <LoadingSpinner />}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="suggestions" className="space-y-6">
@@ -729,36 +883,29 @@ const MyHub = () => {
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredSuggestions.map((profile) => (
-                  <Card key={profile.id}>
-                    <CardHeader>
-                      <Link to={`/profile/${profile.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                        <Avatar className="h-16 w-16">
-                          <AvatarImage src={profile.avatar_url} />
-                          <AvatarFallback>
-                            {getInitials(profile.first_name, profile.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(profile.first_name, profile.last_name) || 'User'}</CardTitle>
-                            {profile.user_is_admin && (
-                              <Badge
-                                variant="destructive"
-                                className="text-xs px-1.5 py-0.5"
-                              >
-                                Admin
-                              </Badge>
-                            )}
-                            {profile.user_role && (
-                              <Badge
-                                className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
-                              >
-                                {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
-                              </Badge>
-                            )}
-                            {profile.user_badges && profile.user_badges.map((userBadge) => {
-                              const badge = userBadge.badges;
-                              if (!badge) return null;
+                <Card key={profile.id}>
+                  <CardHeader>
+                    <Link to={`/profile/${profile.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={profile.avatar_url} />
+                        <AvatarFallback>
+                          {getInitials(profile.first_name, profile.last_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
+                          <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(profile.first_name, profile.last_name) || 'User'}</CardTitle>
+
+                          {profile.user_role && (
+                            <Badge
+                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
+                            >
+                              {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
+                            </Badge>
+                          )}
+                          {profile.user_badges && profile.user_badges.map((userBadge) => {
+                            const badge = userBadge.badges;
+                            if (!badge) return null;
 
                               return (
                                 <TooltipProvider key={userBadge.id}>
@@ -831,6 +978,13 @@ const MyHub = () => {
               </div>
             );
           })()}
+          
+          {/* Infinite scroll trigger for suggestions */}
+          {hasSuggestionsMore && (
+            <div ref={suggestionsLoadMoreRef} className="py-8 text-center">
+              {loadingSuggestionsMore && <LoadingSpinner />}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-6">
@@ -870,6 +1024,13 @@ const MyHub = () => {
                   </CardContent>
                 </Card>
               ))}
+            </div>
+          )}
+          
+          {/* Infinite scroll trigger for groups */}
+          {hasGroupsMore && (
+            <div ref={groupsLoadMoreRef} className="py-8 text-center">
+              {loadingGroupsMore && <LoadingSpinner />}
             </div>
           )}
         </TabsContent>

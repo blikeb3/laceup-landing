@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Users, Award, Trash2, Plus, Image as ImageIcon, Smile } from "lucide-react";
+import { Loader2, Users, Award, Trash2, Plus, Image as ImageIcon, Smile, Pencil } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { EMOJI_CATEGORIES } from "@/constants/emojis";
 import {
@@ -66,6 +66,7 @@ export const AdminUsers = () => {
   const [creatingBadge, setCreatingBadge] = useState(false);
   const [removingBadge, setRemovingBadge] = useState<string | null>(null);
   const [deletingBadge, setDeletingBadge] = useState<string | null>(null);
+  const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const loadBadges = useCallback(async () => {
@@ -131,6 +132,18 @@ export const AdminUsers = () => {
     loadData();
   }, [loadData]);
 
+  const resetBadgeForm = () => {
+    setBadgeName("");
+    setBadgeDescription("");
+    setBadgeIcon("⭐");
+    setBadgeImageFile(null);
+    setBadgeImagePreview(null);
+    setUseEmojiIcon(false);
+    setBadgeColorBg("bg-amber-100");
+    setBadgeColorText("text-amber-800");
+    setEditingBadgeId(null);
+  };
+
   const handleCreateBadge = async () => {
     if (!badgeName.trim()) {
       toast({
@@ -146,7 +159,7 @@ export const AdminUsers = () => {
       let imageUrl: string | null = null;
 
       // Upload image if provided
-      if (badgeImageFile) {
+      if (badgeImageFile && badgeImageFile instanceof File) {
         const fileExt = badgeImageFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `badges/${fileName}`;
@@ -164,45 +177,83 @@ export const AdminUsers = () => {
         imageUrl = data.publicUrl;
       }
 
-      const { error } = await supabase.from("badges").insert({
-        name: badgeName,
-        description: badgeDescription || null,
-        icon: badgeIcon,
-        image_url: imageUrl,
-        color_bg: badgeColorBg,
-        color_text: badgeColorText,
-        is_active: true,
-      });
+      if (editingBadgeId) {
+        // Update existing badge
+        const updateData: any = {
+          name: badgeName,
+          description: badgeDescription || null,
+          icon: badgeIcon,
+          color_bg: badgeColorBg,
+          color_text: badgeColorText,
+        };
 
-      if (error) throw error;
+        if (badgeImageFile && badgeImageFile instanceof File) {
+          updateData.image_url = imageUrl;
+        }
 
-      toast({
-        title: "Success",
-        description: "Badge created successfully",
-      });
+        const { error } = await supabase
+          .from("badges")
+          .update(updateData)
+          .eq("id", editingBadgeId);
 
-      // Reset form
-      setBadgeName("");
-      setBadgeDescription("");
-      setBadgeIcon("⭐");
-      setBadgeImageFile(null);
-      setBadgeImagePreview(null);
-      setUseEmojiIcon(false);
-      setBadgeColorBg("bg-amber-100");
-      setBadgeColorText("text-amber-800");
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Badge updated successfully",
+        });
+      } else {
+        // Create new badge
+        const { error } = await supabase.from("badges").insert({
+          name: badgeName,
+          description: badgeDescription || null,
+          icon: badgeIcon,
+          image_url: imageUrl,
+          color_bg: badgeColorBg,
+          color_text: badgeColorText,
+          is_active: true,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Badge created successfully",
+        });
+      }
+
+      resetBadgeForm();
       setBadgeDialogOpen(false);
-
       await loadBadges();
     } catch (error) {
-      console.error("Error creating badge:", error);
+      console.error("Error saving badge:", error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to create badge",
+        description: error instanceof Error ? error.message : "Failed to save badge",
         variant: "destructive",
       });
     } finally {
       setCreatingBadge(false);
     }
+  };
+
+  const handleEditBadge = (badge: Badge) => {
+    setEditingBadgeId(badge.id);
+    setBadgeName(badge.name);
+    setBadgeDescription(badge.description || "");
+    setBadgeIcon(badge.icon);
+    setBadgeColorBg(badge.color_bg);
+    setBadgeColorText(badge.color_text);
+    
+    if (badge.image_url) {
+      setBadgeImagePreview(badge.image_url);
+      setUseEmojiIcon(false);
+    } else {
+      setUseEmojiIcon(true);
+    }
+    
+    setBadgeImageFile(null);
+    setBadgeDialogOpen(true);
   };
 
   const handleImageFileSelect = (file: File | null) => {
@@ -387,7 +438,10 @@ export const AdminUsers = () => {
             <CardDescription>Create and manage user badges</CardDescription>
           </div>
           <Button
-            onClick={() => setBadgeDialogOpen(true)}
+            onClick={() => {
+              resetBadgeForm();
+              setBadgeDialogOpen(true);
+            }}
             className="gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -416,19 +470,30 @@ export const AdminUsers = () => {
                     ) : (
                       <span className="text-2xl">{badge.icon}</span>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 p-0"
-                      onClick={() => handleDeleteBadge(badge.id)}
-                      disabled={deletingBadge === badge.id}
-                    >
-                      {deletingBadge === badge.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <div className="flex gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleEditBadge(badge)}
+                        disabled={deletingBadge === badge.id || creatingBadge}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 p-0"
+                        onClick={() => handleDeleteBadge(badge.id)}
+                        disabled={deletingBadge === badge.id}
+                      >
+                        {deletingBadge === badge.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-1">
                     <p className={`font-semibold text-sm ${badge.color_text}`}>
@@ -630,13 +695,25 @@ export const AdminUsers = () => {
         </CardContent>
       </Card>
 
-      {/* Create Badge Dialog */}
-      <Dialog open={badgeDialogOpen} onOpenChange={setBadgeDialogOpen}>
+      {/* Create/Edit Badge Dialog */}
+      <Dialog 
+        open={badgeDialogOpen} 
+        onOpenChange={(open) => {
+          setBadgeDialogOpen(open);
+          if (!open) {
+            resetBadgeForm();
+          }
+        }}
+      >
         <DialogContent className="w-[95vw] sm:w-full sm:max-w-md max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create New Badge</DialogTitle>
+            <DialogTitle>
+              {editingBadgeId ? "Edit Badge" : "Create New Badge"}
+            </DialogTitle>
             <DialogDescription>
-              Create a custom badge that can be assigned to users
+              {editingBadgeId 
+                ? "Update badge details and settings" 
+                : "Create a custom badge that can be assigned to users"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -798,7 +875,10 @@ export const AdminUsers = () => {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setBadgeDialogOpen(false)}
+              onClick={() => {
+                setBadgeDialogOpen(false);
+                resetBadgeForm();
+              }}
             >
               Cancel
             </Button>
@@ -809,10 +889,10 @@ export const AdminUsers = () => {
               {creatingBadge ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
+                  {editingBadgeId ? "Updating..." : "Creating..."}
                 </>
               ) : (
-                "Create Badge"
+                editingBadgeId ? "Update Badge" : "Create Badge"
               )}
             </Button>
           </DialogFooter>

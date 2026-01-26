@@ -1,5 +1,6 @@
 /**
- * Formats a date string or Date object to a readable format like "December 3rd, 2025"
+ * Formats a date string or Date object to a readable format like "December 3, 2025"
+ * Note: No ordinal suffix (st, nd, rd, th) when year is included
  */
 export const formatDateLong = (dateInput: string | Date | null | undefined): string => {
   if (!dateInput) return '';
@@ -12,18 +13,8 @@ export const formatDateLong = (dateInput: string | Date | null | undefined): str
   const month = date.toLocaleDateString('en-US', { month: 'long' });
   const year = date.getFullYear();
   
-  // Add ordinal suffix (st, nd, rd, th)
-  const getOrdinalSuffix = (day: number): string => {
-    if (day > 3 && day < 21) return 'th';
-    switch (day % 10) {
-      case 1: return 'st';
-      case 2: return 'nd';
-      case 3: return 'rd';
-      default: return 'th';
-    }
-  };
-  
-  return `${month} ${day}${getOrdinalSuffix(day)}, ${year}`;
+  // Don't add ordinal suffix when year is included
+  return `${month} ${day}, ${year}`;
 };
 
 /**

@@ -516,14 +516,7 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
                 <Link to={`/profile/${post.user_id}`} className="font-semibold text-foreground hover:text-gold transition-colors">
                   {authorName}
                 </Link>
-                {post.user_is_admin && (
-                  <Badge
-                    variant="destructive"
-                    className="text-xs px-1.5 py-0.5"
-                  >
-                    Admin
-                  </Badge>
-                )}
+
                 {post.user_role && (
                   <Badge
                     className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"

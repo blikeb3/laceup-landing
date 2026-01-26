@@ -262,14 +262,6 @@ export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConve
                                 </div>
                             )}
 
-                            {conversation.user_is_admin && (
-                                <Badge
-                                    variant="destructive"
-                                    className="text-xs"
-                                >
-                                    Admin
-                                </Badge>
-                            )}
                             {conversation.user_role && (
                                 <Badge
                                     className="text-xs bg-navy text-gold border-navy"

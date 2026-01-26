@@ -335,14 +335,7 @@ export const NewConversationView = ({
                                         <p className="font-medium truncate">
                                             {getFullName(connection.first_name, connection.last_name)}
                                         </p>
-                                        {connection.user_is_admin && (
-                                            <Badge
-                                                variant="destructive"
-                                                className="text-[10px] px-1 py-0 flex-shrink-0"
-                                            >
-                                                Admin
-                                            </Badge>
-                                        )}
+
                                         {connection.user_role && (
                                             <Badge
                                                 className="text-[10px] px-1 py-0 flex-shrink-0 bg-navy text-gold border-navy"
