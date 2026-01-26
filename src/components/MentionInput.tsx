@@ -129,7 +129,6 @@ export const MentionInput = forwardRef<MentionInputRef, MentionInputProps>(({
                 .select("id, first_name, last_name, avatar_url, sport, university")
                 .in("id", connectedIds)
                 .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
-                .eq("approval_status", "approved")
                 .limit(5);
 
             if (error) {

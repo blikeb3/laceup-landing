@@ -40,7 +40,6 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                     .from("profiles")
                     .select("id, first_name, last_name, avatar_url, sport, university")
                     .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
-                    .eq("approval_status", "approved")
                     .limit(8);
 
                 if (error) {
