@@ -60,7 +60,7 @@ interface Group {
 const MyHub = () => {
   const location = useLocation();
   type RoleFilter = "all" | "athlete" | "mentor" | "employer";
-  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");  
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
   const [suggestions, setSuggestions] = useState<Profile[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -75,7 +75,7 @@ const MyHub = () => {
   // Check URL parameters for search query
   const searchParams = new URLSearchParams(location.search);
   const urlSearchQuery = searchParams.get('search');
-  
+
   // Check if we should default to connections tab
   const defaultTab = (location.hash === "#connections" || urlSearchQuery) ? "connections" : "suggestions";
 
@@ -132,7 +132,6 @@ const MyHub = () => {
       let query = supabase
         .from("profiles")
         .select("*")
-        .eq("approval_status", "approved")
         .neq("id", userId);
 
       // Filter out existing connections
@@ -475,64 +474,64 @@ const MyHub = () => {
         <TabsContent value="connections" className="space-y-6">
           {/* Search Bar for Connections */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-  <div className="relative flex-1 w-full">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    <Input
-      type="text"
-      placeholder="Search your connections..."
-      value={searchQuery}
-      onChange={(e) => setSearchQuery(e.target.value)}
-      className="pl-9"
-    />
-  </div>
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search your connections..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-  <select
-    value={roleFilter}
-    onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-    className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
-  >
-    <option value="all">All</option>
-    <option value="athlete">Athletes</option>
-    <option value="mentor">Mentors</option>
-    <option value="employer">Employers</option>
-  </select>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+              className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="all">All</option>
+              <option value="athlete">Athletes</option>
+              <option value="mentor">Mentors</option>
+              <option value="employer">Employers</option>
+            </select>
 
-  {(searchQuery || roleFilter !== "all") && (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => {
-        setSearchQuery("");
-        setRoleFilter("all");
-      }}
-      className="gap-2"
-    >
-      <X className="h-4 w-4" />
-      Clear
-    </Button>
-  )}
-</div>
+            {(searchQuery || roleFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearchQuery("");
+                  setRoleFilter("all");
+                }}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
 
           {(() => {
             const filteredConnections = connections.filter((connection) => {
-  const search = searchQuery.trim().toLowerCase();
+              const search = searchQuery.trim().toLowerCase();
 
-  // Role filtering
-  if (roleFilter !== "all") {
-    const role = (connection.user_role ?? "").toLowerCase();
-    if (role !== roleFilter) return false;
-  }
+              // Role filtering
+              if (roleFilter !== "all") {
+                const role = (connection.user_role ?? "").toLowerCase();
+                if (role !== roleFilter) return false;
+              }
 
-  // Text filtering
-  if (!search) return true;
+              // Text filtering
+              if (!search) return true;
 
-  const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
-  return (
-    fullName.includes(search) ||
-    (connection.university ?? "").toLowerCase().includes(search) ||
-    (connection.sport ?? "").toLowerCase().includes(search)
-  );
-});
+              const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
+              return (
+                fullName.includes(search) ||
+                (connection.university ?? "").toLowerCase().includes(search) ||
+                (connection.sport ?? "").toLowerCase().includes(search)
+              );
+            });
 
 
             return filteredConnections.length === 0 ? (
@@ -555,95 +554,95 @@ const MyHub = () => {
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredConnections.map((connection) => (
-                <Card key={connection.id}>
-                  <CardHeader>
-                    <Link to={`/profile/${connection.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={connection.avatar_url || undefined} />
-                        <AvatarFallback>
-                          {getInitials(connection.first_name, connection.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(connection.first_name, connection.last_name) || 'User'}</CardTitle>
-                          {connection.user_is_admin && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1.5 py-0.5"
-                            >
-                              Admin
-                            </Badge>
-                          )}
-                          {connection.user_role && (
-                            <Badge
-                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
-                            >
-                              {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
-                            </Badge>
-                          )}
-                          {connection.user_badges && connection.user_badges.map((userBadge) => {
-                            const badge = userBadge.badges;
-                            if (!badge) return null;
+                  <Card key={connection.id}>
+                    <CardHeader>
+                      <Link to={`/profile/${connection.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={connection.avatar_url || undefined} />
+                          <AvatarFallback>
+                            {getInitials(connection.first_name, connection.last_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(connection.first_name, connection.last_name) || 'User'}</CardTitle>
+                            {connection.user_is_admin && (
+                              <Badge
+                                variant="destructive"
+                                className="text-xs px-1.5 py-0.5"
+                              >
+                                Admin
+                              </Badge>
+                            )}
+                            {connection.user_role && (
+                              <Badge
+                                className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
+                              >
+                                {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
+                              </Badge>
+                            )}
+                            {connection.user_badges && connection.user_badges.map((userBadge) => {
+                              const badge = userBadge.badges;
+                              if (!badge) return null;
 
-                            return (
-                              <TooltipProvider key={userBadge.id}>
-                                <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild>
-                                    <div className="cursor-help">
-                                      {badge.image_url ? (
-                                        <img
-                                          src={badge.image_url}
-                                          alt={badge.name}
-                                          className="w-5 h-5 object-contain"
-                                        />
-                                      ) : badge.icon ? (
-                                        <span className="text-base">{badge.icon}</span>
-                                      ) : null}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <div className="text-sm">
-                                      <p className="font-semibold">{badge.name}</p>
-                                      {badge.description && <p className="text-xs mt-1">{badge.description}</p>}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })}
+                              return (
+                                <TooltipProvider key={userBadge.id}>
+                                  <Tooltip delayDuration={100}>
+                                    <TooltipTrigger asChild>
+                                      <div className="cursor-help">
+                                        {badge.image_url ? (
+                                          <img
+                                            src={badge.image_url}
+                                            alt={badge.name}
+                                            className="w-5 h-5 object-contain"
+                                          />
+                                        ) : badge.icon ? (
+                                          <span className="text-base">{badge.icon}</span>
+                                        ) : null}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="text-sm">
+                                        <p className="font-semibold">{badge.name}</p>
+                                        {badge.description && <p className="text-xs mt-1">{badge.description}</p>}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                          </div>
+                          <CardDescription className="text-sm">
+                            {connection.university}
+                          </CardDescription>
                         </div>
-                        <CardDescription className="text-sm">
-                          {connection.university}
-                        </CardDescription>
+                      </Link>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {connection.sport && (
+                        <Badge variant="secondary">{connection.sport}</Badge>
+                      )}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          asChild
+                          className="flex-1"
+                        >
+                          <Link to={`/profile/${connection.id}`}>View Profile</Link>
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDisconnect(connection.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <UserMinus className="h-4 w-4" />
+                        </Button>
                       </div>
-                    </Link>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {connection.sport && (
-                      <Badge variant="secondary">{connection.sport}</Badge>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                        className="flex-1"
-                      >
-                        <Link to={`/profile/${connection.id}`}>View Profile</Link>
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDisconnect(connection.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <UserMinus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             );
           })()}
@@ -652,65 +651,65 @@ const MyHub = () => {
         <TabsContent value="suggestions" className="space-y-6">
           {/* Search Bar for Suggestions */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-  <div className="relative flex-1 w-full">
-    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-    <Input
-      type="text"
-      placeholder="Search suggested connections..."
-      value={suggestionsSearchQuery}
-      onChange={(e) => setSuggestionsSearchQuery(e.target.value)}
-      className="pl-9"
-    />
-  </div>
+            <div className="relative flex-1 w-full">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search suggested connections..."
+                value={suggestionsSearchQuery}
+                onChange={(e) => setSuggestionsSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
 
-  <select
-    value={roleFilter}
-    onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
-    className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
-  >
-    <option value="all">All</option>
-    <option value="athlete">Athletes</option>
-    <option value="mentor">Mentors</option>
-    <option value="employer">Employers</option>
-  </select>
+            <select
+              value={roleFilter}
+              onChange={(e) => setRoleFilter(e.target.value as RoleFilter)}
+              className="h-10 w-full sm:w-[180px] rounded-md border bg-background px-3 text-sm"
+            >
+              <option value="all">All</option>
+              <option value="athlete">Athletes</option>
+              <option value="mentor">Mentors</option>
+              <option value="employer">Employers</option>
+            </select>
 
-  {(suggestionsSearchQuery || roleFilter !== "all") && (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={() => {
-        setSuggestionsSearchQuery("");
-        setRoleFilter("all");
-      }}
-      className="gap-2"
-    >
-      <X className="h-4 w-4" />
-      Clear
-    </Button>
-  )}
-</div>
+            {(suggestionsSearchQuery || roleFilter !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSuggestionsSearchQuery("");
+                  setRoleFilter("all");
+                }}
+                className="gap-2"
+              >
+                <X className="h-4 w-4" />
+                Clear
+              </Button>
+            )}
+          </div>
 
 
           {(() => {
             const filteredSuggestions = suggestions.filter((profile) => {
-  const search = suggestionsSearchQuery.trim().toLowerCase();
+              const search = suggestionsSearchQuery.trim().toLowerCase();
 
-  // Role filtering
-  if (roleFilter !== "all") {
-    const role = (profile.user_role ?? "").toLowerCase();
-    if (role !== roleFilter) return false;
-  }
+              // Role filtering
+              if (roleFilter !== "all") {
+                const role = (profile.user_role ?? "").toLowerCase();
+                if (role !== roleFilter) return false;
+              }
 
-  // Text filtering
-  if (!search) return true;
+              // Text filtering
+              if (!search) return true;
 
-  const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
-  return (
-    fullName.includes(search) ||
-    (profile.university ?? "").toLowerCase().includes(search) ||
-    (profile.sport ?? "").toLowerCase().includes(search)
-  );
-});
+              const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
+              return (
+                fullName.includes(search) ||
+                (profile.university ?? "").toLowerCase().includes(search) ||
+                (profile.sport ?? "").toLowerCase().includes(search)
+              );
+            });
 
 
             return filteredSuggestions.length === 0 ? (
@@ -730,105 +729,105 @@ const MyHub = () => {
             ) : (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {filteredSuggestions.map((profile) => (
-                <Card key={profile.id}>
-                  <CardHeader>
-                    <Link to={`/profile/${profile.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
-                      <Avatar className="h-16 w-16">
-                        <AvatarImage src={profile.avatar_url} />
-                        <AvatarFallback>
-                          {getInitials(profile.first_name, profile.last_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(profile.first_name, profile.last_name) || 'User'}</CardTitle>
-                          {profile.user_is_admin && (
-                            <Badge
-                              variant="destructive"
-                              className="text-xs px-1.5 py-0.5"
-                            >
-                              Admin
-                            </Badge>
-                          )}
-                          {profile.user_role && (
-                            <Badge
-                              className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
-                            >
-                              {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
-                            </Badge>
-                          )}
-                          {profile.user_badges && profile.user_badges.map((userBadge) => {
-                            const badge = userBadge.badges;
-                            if (!badge) return null;
+                  <Card key={profile.id}>
+                    <CardHeader>
+                      <Link to={`/profile/${profile.id}`} className="flex items-center gap-4 hover:opacity-80 transition-opacity">
+                        <Avatar className="h-16 w-16">
+                          <AvatarImage src={profile.avatar_url} />
+                          <AvatarFallback>
+                            {getInitials(profile.first_name, profile.last_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <div className="flex flex-wrap items-center gap-2 mb-1">
+                            <CardTitle className="text-lg hover:text-primary transition-colors">{getFullName(profile.first_name, profile.last_name) || 'User'}</CardTitle>
+                            {profile.user_is_admin && (
+                              <Badge
+                                variant="destructive"
+                                className="text-xs px-1.5 py-0.5"
+                              >
+                                Admin
+                              </Badge>
+                            )}
+                            {profile.user_role && (
+                              <Badge
+                                className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
+                              >
+                                {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
+                              </Badge>
+                            )}
+                            {profile.user_badges && profile.user_badges.map((userBadge) => {
+                              const badge = userBadge.badges;
+                              if (!badge) return null;
 
-                            return (
-                              <TooltipProvider key={userBadge.id}>
-                                <Tooltip delayDuration={100}>
-                                  <TooltipTrigger asChild>
-                                    <div className="cursor-help">
-                                      {badge.image_url ? (
-                                        <img
-                                          src={badge.image_url}
-                                          alt={badge.name}
-                                          className="w-5 h-5 object-contain"
-                                        />
-                                      ) : badge.icon ? (
-                                        <span className="text-base">{badge.icon}</span>
-                                      ) : null}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <div className="text-sm">
-                                      <p className="font-semibold">{badge.name}</p>
-                                      {badge.description && <p className="text-xs mt-1">{badge.description}</p>}
-                                    </div>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            );
-                          })}
+                              return (
+                                <TooltipProvider key={userBadge.id}>
+                                  <Tooltip delayDuration={100}>
+                                    <TooltipTrigger asChild>
+                                      <div className="cursor-help">
+                                        {badge.image_url ? (
+                                          <img
+                                            src={badge.image_url}
+                                            alt={badge.name}
+                                            className="w-5 h-5 object-contain"
+                                          />
+                                        ) : badge.icon ? (
+                                          <span className="text-base">{badge.icon}</span>
+                                        ) : null}
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <div className="text-sm">
+                                        <p className="font-semibold">{badge.name}</p>
+                                        {badge.description && <p className="text-xs mt-1">{badge.description}</p>}
+                                      </div>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              );
+                            })}
+                          </div>
+                          <CardDescription className="text-sm">
+                            {profile.university}
+                          </CardDescription>
                         </div>
-                        <CardDescription className="text-sm">
-                          {profile.university}
-                        </CardDescription>
+                      </Link>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        {profile.sport && (
+                          <Badge variant="secondary">{profile.sport}</Badge>
+                        )}
+                        {profile.skills?.slice(0, 2).map((skill, idx) => (
+                          <Badge key={idx} variant="outline" className="mr-1">
+                            {skill}
+                          </Badge>
+                        ))}
                       </div>
-                    </Link>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      {profile.sport && (
-                        <Badge variant="secondary">{profile.sport}</Badge>
+                      {profile.about && (
+                        <p className="text-sm text-muted-foreground line-clamp-2">
+                          {profile.about}
+                        </p>
                       )}
-                      {profile.skills?.slice(0, 2).map((skill, idx) => (
-                        <Badge key={idx} variant="outline" className="mr-1">
-                          {skill}
-                        </Badge>
-                      ))}
-                    </div>
-                    {profile.about && (
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {profile.about}
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        asChild
-                        className="flex-1"
-                      >
-                        <Link to={`/profile/${profile.id}`}>View Profile</Link>
-                      </Button>
-                      <Button
-                        onClick={() => handleConnect(profile.id)}
-                        className="flex-1"
-                      >
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        Connect
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          asChild
+                          className="flex-1"
+                        >
+                          <Link to={`/profile/${profile.id}`}>View Profile</Link>
+                        </Button>
+                        <Button
+                          onClick={() => handleConnect(profile.id)}
+                          className="flex-1"
+                        >
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          Connect
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             );
           })()}

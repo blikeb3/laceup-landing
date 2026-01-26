@@ -166,20 +166,6 @@ const Auth = () => {
           });
         }
 
-        // Check if email is in preapproved_emails table and auto-approve
-        // Using RPC function to bypass RLS restrictions for unauthenticated users
-        const { data: isAutoApproved, error: autoApproveError } = await supabase
-          .rpc('auto_approve_if_preapproved', {
-            p_user_id: user.id,
-            p_email: email
-          });
-
-        if (autoApproveError) {
-          console.error("Error checking/approving preapproved user:", autoApproveError);
-        }
-
-        const wasAutoApproved = isAutoApproved === true;
-
         if (referralToken) {
           const { error: referralError } = await supabase.functions.invoke('referral-joined', {
             body: { token: referralToken, userId: user.id, userEmail: email }
@@ -199,15 +185,13 @@ const Auth = () => {
 
         toast({
           title: "Success!",
-          description: wasAutoApproved
-            ? "Account created and approved! You can now sign in after verifying your email."
-            : "Account created. Please wait for admin approval to access the platform.",
+          description: "Account created! Please check your email to verify your account, then sign in.",
         });
       } else {
         console.error("Error: No user returned from signup");
         toast({
           title: "Success!",
-          description: "Account created. Please wait for admin approval to access the platform.",
+          description: "Account created! Please check your email to verify your account.",
         });
       }
 
@@ -339,61 +323,8 @@ const Auth = () => {
       }
       setLoading(false);
 
-      // SERVER-SIDE VERIFICATION: Check approval status via server function
-      // This prevents API manipulation or session replay bypassing frontend checks
-      const { data: approvalData, error: approvalError } = await supabase
-        .rpc('check_user_approval');
-
-      if (approvalError || !approvalData || !approvalData[0]) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Error",
-          description: "Failed to verify account status. Please try again.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const { is_approved, approval_status } = approvalData[0];
-
-      if (!is_approved) {
-        await supabase.auth.signOut();
-
-        if (approval_status === "pending") {
-          toast({
-            title: "Pending Approval",
-            description: "Your account is pending admin approval. Please wait.",
-            variant: "destructive",
-          });
-        } else if (approval_status === "rejected") {
-          toast({
-            title: "Access Denied",
-            description: "Your account registration was not approved.",
-            variant: "destructive",
-          });
-        }
-        return;
-      }
-
-      // FALLBACK: Also check via direct profile query as additional security layer
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("approval_status")
-          .eq("id", user.id)
-          .single();
-
-        if (profile?.approval_status !== "approved") {
-          await supabase.auth.signOut();
-          toast({
-            title: "Access Denied",
-            description: "Your account status does not permit access.",
-            variant: "destructive",
-          });
-          return;
-        }
-      }
+      // Navigate to home - no approval required
+      navigate("/home");
     } catch (error) {
       setLoading(false);
       toast({
@@ -417,46 +348,12 @@ const Auth = () => {
     if (result.success) {
       setShowMfaDialog(false);
 
-      // Continue with approval checks
-      const { data: approvalData, error: approvalError } = await supabase
-        .rpc('check_user_approval');
-
-      if (approvalError || !approvalData || !approvalData[0]) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Error",
-          description: "Failed to verify account status. Please try again.",
-          variant: "destructive",
-        });
-        return { success: false };
-      }
-
-      const { is_approved, approval_status } = approvalData[0];
-
-      if (!is_approved) {
-        await supabase.auth.signOut();
-
-        if (approval_status === "pending") {
-          toast({
-            title: "Pending Approval",
-            description: "Your account is pending admin approval. Please wait.",
-            variant: "destructive",
-          });
-        } else if (approval_status === "rejected") {
-          toast({
-            title: "Access Denied",
-            description: "Your account registration was not approved.",
-            variant: "destructive",
-          });
-        }
-        return { success: false };
-      }
-
       toast({
         title: "Success",
         description: "Signed in successfully",
       });
 
+      navigate("/home");
       return { success: true };
     }
 
@@ -476,52 +373,12 @@ const Auth = () => {
     if (result.success) {
       setShowMfaDialog(false);
 
-      // Backup codes are our custom implementation - they don't upgrade Supabase's AAL
-      // But we've verified the user's identity, so proceed with approval checks
-
-      // Check approval status
-      const { data: approvalData, error: approvalError } = await supabase
-        .rpc('check_user_approval');
-
-      if (approvalError || !approvalData || !approvalData[0]) {
-        await supabase.auth.signOut();
-        toast({
-          title: "Error",
-          description: "Failed to verify account status. Please try again.",
-          variant: "destructive",
-        });
-        return { success: false };
-      }
-
-      const { is_approved, approval_status } = approvalData[0];
-
-      if (!is_approved) {
-        await supabase.auth.signOut();
-
-        if (approval_status === "pending") {
-          toast({
-            title: "Pending Approval",
-            description: "Your account is pending admin approval. Please wait.",
-            variant: "destructive",
-          });
-        } else if (approval_status === "rejected") {
-          toast({
-            title: "Access Denied",
-            description: "Your account registration was not approved.",
-            variant: "destructive",
-          });
-        }
-        return { success: false };
-      }
-
       toast({
         title: "Success",
         description: "Signed in with backup code. Please set up a new authenticator.",
       });
 
-      // Navigate to home - we've verified identity via backup code
       navigate("/home");
-
       return { success: true };
     }
 
@@ -704,9 +561,6 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}
                 </Button>
-                <p className="text-sm text-muted-foreground text-center">
-                  Your account will require admin approval before you can access the platform.
-                </p>
               </form>
             </TabsContent>
           </Tabs>
