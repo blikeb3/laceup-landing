@@ -10,6 +10,7 @@ import { Users, UserPlus, Target, UserCheck, UserMinus, Mail, Search, X } from "
 import { useToast } from "@/hooks/use-toast";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ReferralDialog } from "@/components/ReferralDialog";
+import { PendingRequests } from "@/components/PendingRequests";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ const MyHub = () => {
 
   const [suggestions, setSuggestions] = useState<Profile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [connections, setConnections] = useState<Connection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,6 +148,15 @@ const MyHub = () => {
         const pending = new Set(data.map(req => req.receiver_id));
         setPendingRequests(pending);
       }
+
+      // Count incoming pending requests for badge
+      const { count } = await supabase
+        .from("connection_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("receiver_id", user.id)
+        .eq("status", "pending");
+
+      setPendingRequestsCount(count || 0);
     };
 
     fetchPendingRequests();
@@ -295,10 +306,11 @@ const MyHub = () => {
       const from = reset ? 0 : connections.length;
       const to = from + PAGE_SIZE - 1;
 
-      const { data: connectionData, error: connectionsError } = await supabase
+      const { data: connectionData, error: connectionsError, count } = await supabase
         .from("connections")
-        .select("connected_user_id")
+        .select("connected_user_id, created_at", { count: "exact" })
         .eq("user_id", userId)
+        .order("created_at", { ascending: false })
         .range(from, to);
 
       if (connectionsError) throw connectionsError;
@@ -344,7 +356,8 @@ const MyHub = () => {
           setConnections(prev => [...prev, ...connectionsWithRoles]);
         }
 
-        setHasConnectionsMore((connectionData?.length || 0) === PAGE_SIZE);
+        const total = count ?? 0;
+        setHasConnectionsMore(from + (connectionData?.length || 0) < total);
       } else {
         setHasConnectionsMore(false);
         if (reset) setConnections([]);
@@ -658,13 +671,22 @@ const MyHub = () => {
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
         <TabsList className="w-full sm:w-auto flex flex-wrap h-auto">
-          <TabsTrigger value="connections" className="gap-2">
-            <UserCheck className="h-4 w-4" />
-            My Connections
-          </TabsTrigger>
           <TabsTrigger value="suggestions" className="gap-2">
             <UserPlus className="h-4 w-4" />
             Suggested Connections
+          </TabsTrigger>
+          <TabsTrigger value="requests" className="gap-2 relative">
+            <Mail className="h-4 w-4" />
+            Requests
+            {pendingRequestsCount > 0 && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-amber-500 px-2 py-0.5 text-xs font-semibold text-white">
+                {pendingRequestsCount}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="connections" className="gap-2">
+            <UserCheck className="h-4 w-4" />
+            My Connections
           </TabsTrigger>
           <TabsTrigger value="groups" className="gap-2">
             <Users className="h-4 w-4" />
@@ -1042,6 +1064,10 @@ const MyHub = () => {
               {loadingSuggestionsMore && <LoadingSpinner />}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="requests" className="space-y-6">
+          <PendingRequests embedded />
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-6">

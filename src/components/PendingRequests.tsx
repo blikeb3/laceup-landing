@@ -29,7 +29,11 @@ interface ConnectionRequest {
   };
 }
 
-export const PendingRequests = () => {
+interface PendingRequestsProps {
+  embedded?: boolean;
+}
+
+export const PendingRequests = ({ embedded = false }: PendingRequestsProps) => {
   const { toast } = useToast();
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
@@ -53,26 +57,33 @@ export const PendingRequests = () => {
 
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      const { data: requestsData, error } = await supabase
         .from("connection_requests")
-        .select(`
-          *,
-          requester:requester_id(
-            id,
-            first_name,
-            last_name,
-            avatar_url,
-            university,
-            skills
-          )
-        `)
+        .select("*")
         .eq("receiver_id", currentUserId)
         .eq("status", "pending")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      setPendingRequests((data as ConnectionRequest[]) || []);
+      // Fetch requester profiles separately
+      if (requestsData && requestsData.length > 0) {
+        const requesterIds = requestsData.map(req => req.requester_id);
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, avatar_url, university, skills")
+          .in("id", requesterIds);
+
+        // Map profiles to requests
+        const requestsWithProfiles = requestsData.map(req => ({
+          ...req,
+          requester: profilesData?.find(p => p.id === req.requester_id)
+        }));
+
+        setPendingRequests(requestsWithProfiles as ConnectionRequest[]);
+      } else {
+        setPendingRequests([]);
+      }
     } catch (error) {
       console.error("Error fetching pending requests:", error);
       toast({
@@ -226,10 +237,16 @@ export const PendingRequests = () => {
     );
   }
 
+  const wrapperClass = embedded
+    ? "max-w-5xl mx-auto px-0 py-0"
+    : "max-w-4xl mx-auto px-4 py-8 pt-24";
+
+  const headerClass = embedded ? "mb-6" : "mb-8";
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 pt-24">
+    <div className={wrapperClass}>
       {/* Header */}
-      <div className="mb-8">
+      <div className={headerClass}>
         <div className="flex items-center gap-3 mb-4">
           <Users className="h-8 w-8 text-gold" />
           <h1 className="text-3xl font-bold">Connection Requests</h1>
