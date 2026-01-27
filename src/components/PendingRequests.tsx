@@ -263,9 +263,6 @@ export const PendingRequests = ({ embedded = false }: PendingRequestsProps) => {
           <p className="text-muted-foreground mb-4">
             You don't have any pending connection requests at the moment
           </p>
-          <Link to="/my-hub">
-            <Button>Explore Users</Button>
-          </Link>
         </Card>
       ) : (
         <div className="space-y-4">
