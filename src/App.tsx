@@ -13,6 +13,8 @@ import Messages from "./pages/Messages";
 import Opportunities from "./pages/Opportunities";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import LaceHub from "./pages/LaceHub";
 import MyHub from "./pages/MyHub";
 import NotFound from "./pages/NotFound";
@@ -33,6 +35,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/home"
           element={
