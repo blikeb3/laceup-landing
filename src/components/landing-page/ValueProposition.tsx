@@ -1,5 +1,5 @@
 import { Card } from "../ui/card";
-import { Users, Target, Award, TrendingUp } from "lucide-react";
+import { Users, Target, Award, TrendingUp, Rocket, Network } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 
 export function ValueProposition() {
@@ -8,40 +8,43 @@ export function ValueProposition() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AnimatedSection>
           <div className="text-center mb-16">
-            <h2 className="text-3xl lg:text-4xl mb-4">Why We Exist</h2>
-            <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
-              Bridging the gap between athletic excellence and professional success
+            <h2 className="text-4xl lg:text-5xl font-bold mb-4 text-[#0A2849]">Why Choose LaceUP?</h2>
+            <p className="text-xl text-[#0A2849]/70 max-w-3xl mx-auto">
+              We bridge the gap between athletic excellence and professional success
             </p>
           </div>
         </AnimatedSection>
 
-        <div className="grid md:grid-cols-2 gap-12">
+        <div className="grid md:grid-cols-2 gap-8 mb-12">
           {/* For Athletes */}
           <AnimatedSection delay={100}>
-            <Card className="p-8 border-2 hover:border-[#E8B555] transition-colors h-full">
+            <Card className="p-8 border-2 border-[#0A2849]/20 hover:border-[#E8B555] transition-all duration-300 h-full hover:shadow-lg">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-[#E8B555]/20 rounded-lg flex items-center justify-center">
-                  <Award className="w-6 h-6 text-[#E8B555]" />
+                <div className="w-14 h-14 bg-gradient-to-br from-[#E8B555]/20 to-[#F2C877]/20 rounded-xl flex items-center justify-center">
+                  <Rocket className="w-7 h-7 text-[#E8B555]" />
                 </div>
-                <h3 className="text-2xl text-[#0A2849]">For Athletes</h3>
+                <h3 className="text-2xl font-bold text-[#0A2849]">For Athletes</h3>
               </div>
+              <p className="text-[#0A2849]/70 mb-6">
+                Your athletic career doesn't end when you leave the field. Launch your professional journey with confidence.
+              </p>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#E8B555] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Build your professional identity beyond sports.
+                  <Award className="w-5 h-5 text-[#E8B555] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">Build Your Professional Identity</span> — Showcase your discipline, leadership, and work ethic beyond sports.
                   </p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#E8B555] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Connect with alumni, mentors, and recruiters who understand the athlete mindset.
+                  <Network className="w-5 h-5 text-[#E8B555] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">Connect with Your People</span> — Meet alumni, mentors, and recruiters who get the athlete mindset.
                   </p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#E8B555] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Access opportunities curated for athletes, not buried on generic platforms.
+                  <Target className="w-5 h-5 text-[#E8B555] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">Access Curated Opportunities</span> — Find roles designed for athletes, not buried on LinkedIn.
                   </p>
                 </li>
               </ul>
@@ -50,30 +53,33 @@ export function ValueProposition() {
 
           {/* For Businesses */}
           <AnimatedSection delay={200}>
-            <Card className="p-8 border-2 hover:border-[#0A2849] transition-colors h-full">
+            <Card className="p-8 border-2 border-[#0A2849]/20 hover:border-[#0A2849] transition-all duration-300 h-full hover:shadow-lg">
               <div className="flex items-center gap-3 mb-6">
-                <div className="w-12 h-12 bg-[#0A2849]/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-[#0A2849]" />
+                <div className="w-14 h-14 bg-[#0A2849]/10 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="w-7 h-7 text-[#0A2849]" />
                 </div>
-                <h3 className="text-2xl text-[#0A2849]">For Businesses & Recruiters</h3>
+                <h3 className="text-2xl font-bold text-[#0A2849]">For Businesses & Recruiters</h3>
               </div>
+              <p className="text-[#0A2849]/70 mb-6">
+                Access high-performing talent before they're visible on traditional platforms.
+              </p>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#0A2849] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Tap into disciplined, high-performing talent.
+                  <Users className="w-5 h-5 text-[#0A2849] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">Tap Into Disciplined Talent</span> — Recruit athletes known for dedication, teamwork, and peak performance.
                   </p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#0A2849] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Reach athletes before they're visible on LinkedIn.
+                  <Rocket className="w-5 h-5 text-[#0A2849] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">First-Mover Advantage</span> — Reach talented athletes before they commit to other companies.
                   </p>
                 </li>
                 <li className="flex items-start gap-3">
-                  <div className="w-1.5 h-1.5 bg-[#0A2849] rounded-full mt-2.5 flex-shrink-0"></div>
-                  <p className="text-muted-foreground">
-                    Build brand credibility through athlete engagement.
+                  <Award className="w-5 h-5 text-[#0A2849] mt-0.5 flex-shrink-0" />
+                  <p className="text-[#0A2849]/80">
+                    <span className="font-semibold">Build Your Employer Brand</span> — Engage with a community of ambitious, driven professionals.
                   </p>
                 </li>
               </ul>

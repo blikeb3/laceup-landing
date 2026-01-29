@@ -1,28 +1,48 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "../ui/button";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 
 export function CTABanner() {
   const navigate = useNavigate();
 
   return (
-    <div className="relative py-16 bg-gradient-to-br from-[#E8B555] via-[#F2C877] to-[#E8B555] overflow-hidden">
-      {/* Decorative elements */}
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwQTI4NDkiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PHBhdGggZD0iTTM2IDEzNGgxMnYxMkgzNnptMjQgMGgxMnYxMkg2MHptMC0yNGgxMnYxMkg2MHptMCAxMmgxMnYxMkg2MHptMjQgMGgxMnYxMkg4NHptMC0xMmgxMnYxMkg4NHptMC0yNGgxMnYxMkg4NHptMCAxMmgxMnYxMkg4NHptMjQgMGgxMnYxMmgtMTJ6bTAtMTJoMTJ2MTJoLTEyem0wLTI0aDEydjEyaC0xMnptMCAxMmgxMnYxMmgtMTJ6bTI0IDBoMTJ2MTJoLTEyem0wLTEyaDEydjEyaC0xMnptMC0yNGgxMnYxMmgtMTJ6bTAgMTJoMTJ2MTJoLTEyeiIvPjwvZz48L2c+PC9zdmc+')] opacity-30"></div>
+    <div className="relative py-24 bg-gradient-to-br from-[#0A2849] via-[#154170] to-[#0A2849] overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[#E8B555]/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#E8B555]/5 rounded-full blur-3xl"></div>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-        <h2 className="text-2xl lg:text-3xl mb-4 text-[#0A2849]">
-          Ready to join the LaceUP community?
+        
+
+        <h2 className="text-4xl lg:text-5xl font-bold mb-6 text-white leading-tight">
+          Ready to Launch Your Career?
         </h2>
+        
+        <p className="text-xl text-white/80 mb-8 max-w-2xl mx-auto leading-relaxed">
+          Join thousands of athletes who are building their professional futures on LaceUP. Start for free today.
+        </p>
        
-        <Button
-          size="lg"
-          className="bg-[#0A2849] text-white hover:bg-[#154170] text-lg px-10 py-6 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
-          onClick={() => navigate('/auth?tab=signup')}
-        >
-          Sign Up 
-          <ArrowRight className="ml-2 w-5 h-5" />
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <Button
+            size="lg"
+            className="bg-gradient-to-r from-[#E8B555] to-[#F2C877] text-[#0A2849] hover:from-[#F2C877] hover:to-[#FCDBA8] font-bold text-lg px-10 py-7 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105 flex items-center justify-center gap-2"
+            onClick={() => navigate('/auth?tab=signup')}
+          >
+            Get Started Free
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+          <Button
+            size="lg"
+            className="bg-white text-[#0A2849] hover:bg-[#f3f4f6] font-semibold text-lg px-10 py-7 shadow-sm"
+            onClick={() => navigate('/auth')}
+          >
+            Already a Member? Sign In
+          </Button>
+        </div>
+
+        <p className="text-white/60 text-sm mt-6">
+          No credit card required. Set up your profile in 5 minutes.
+        </p>
       </div>
     </div>
   );
