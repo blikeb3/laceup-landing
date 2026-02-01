@@ -14,40 +14,53 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetSuccess, setResetSuccess] = useState(false);
-  const [error, setError] = useState("");
-  const [sessionValid, setSessionValid] = useState(false);
-  const [sessionChecking, setSessionChecking] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Check if user has a valid recovery session
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
+  const [checking, setChecking] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionValid, setSessionValid] = useState(false);
 
-        if (session) {
-          setSessionValid(true);
-        } else {
-          setSessionValid(false);
-          setError("No valid recovery session. Please use the link from your email.");
-        }
-      } catch (err) {
-        console.error("Session check error:", err);
-        setSessionValid(false);
-        setError("Failed to verify your session.");
-      } finally {
-        setSessionChecking(false);
-      }
-    };
 
-    checkSession();
-  }, []);
+ useEffect(() => {
+  let mounted = true;
+
+  const verify = async () => {
+    try {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) throw error;
+
+      if (!mounted) return;
+      setSessionValid(!!data.session);
+    } catch (e: any) {
+      if (!mounted) return;
+      setSessionValid(false);
+      setError(e?.message ?? "Failed to verify your session.");
+    } finally {
+      if (!mounted) return;
+      setChecking(false);
+    }
+  };
+
+  verify();
+
+  const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+    // This is the key to fixing the “null session on mount” race
+    if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+      setSessionValid(!!session);
+      setChecking(false);
+    }
+  });
+
+  return () => {
+    mounted = false;
+    sub?.subscription?.unsubscribe();
+  };
+}, []);
+
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value;
@@ -63,7 +76,7 @@ const ResetPassword = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setError(null);
 
     // Validation checks
     if (!password || !confirmPassword) {
@@ -109,7 +122,7 @@ const ResetPassword = () => {
     setLoading(false);
   };
 
-  if (sessionChecking) {
+  if (checking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
         <Card className="w-full max-w-md bg-slate-800 border-slate-700">

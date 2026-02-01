@@ -712,7 +712,7 @@ const UserProfile = () => {
 
                   {userRole && (
                     <Badge
-                      className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8 bg-navy text-gold border-navy"
+                      className="text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-1.5 bg-navy text-gold border-navy"
                     >
                       {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                     </Badge>
@@ -730,10 +730,12 @@ const UserProfile = () => {
                                 <img
                                   src={badge.image_url}
                                   alt={badge.name}
-                                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+                                  className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+
                                 />
                               ) : badge.icon ? (
-                                <span className="text-2xl sm:text-3xl">{badge.icon}</span>
+                                <span className="text-4xl sm:text-5xl">{badge.icon}</span>
+
                               ) : null}
                             </div>
                           </TooltipTrigger>
