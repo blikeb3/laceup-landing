@@ -1007,7 +1007,7 @@ const Home = () => {
                                 <img
                                   src={badge.image_url}
                                   alt={badge.name}
-                                  className="w-6 h-6 object-contain"
+                                  className="w-10 h-10 object-contain"
                                 />
                               ) : badge.icon ? (
                                 <span className="text-lg">{badge.icon}</span>

@@ -787,7 +787,7 @@ const Profile = () => {
                             <TooltipTrigger asChild>
                               <div className="cursor-help">
                                 {badge.image_url ? (
-                                  <img src={badge.image_url} alt={badge.name} className="w-8 h-8 sm:w-10 sm:h-10 object-contain" />
+                                  <img src={badge.image_url} alt={badge.name} className="w-14 h-14 sm:w-10 sm:h-10 object-contain" />
                                 ) : badge.icon ? (
                                   <span className="text-2xl sm:text-3xl">{badge.icon}</span>
                                 ) : null}

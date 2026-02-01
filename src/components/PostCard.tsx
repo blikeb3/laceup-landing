@@ -531,19 +531,22 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
                   return (
                     <TooltipProvider key={userBadge.id}>
                       <Tooltip delayDuration={100}>
+
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
                             {badge.image_url ? (
                               <img
                                 src={badge.image_url}
                                 alt={badge.name}
-                                className="w-5 h-5 object-contain"
+                                className="w-14 h-14 sm:w-18 sm:h-18 object-contain"
+
                               />
                             ) : badge.icon ? (
-                              <span className="text-base">{badge.icon}</span>
+                              <span className="text-4xl sm:text-5xl leading-none">{badge.icon}</span>
                             ) : null}
                           </div>
                         </TooltipTrigger>
+
                         <TooltipContent>
                           <div className="text-sm">
                             <p className="font-semibold">{badge.name}</p>
