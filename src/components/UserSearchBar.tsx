@@ -35,15 +35,22 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
 
             setIsLoading(true);
             try {
-                const terms = query.trim().split(/\s+/);
-                const searchTerm = `%${query.trim()}%`;
-                
-                // Get all profiles and filter client-side for multi-word matching
+                const trimmedQuery = query.trim();
+                const terms = trimmedQuery.split(/\s+/);
+                const orFilters = terms
+                    .flatMap((term) => [
+                        `first_name.ilike.%${term}%`,
+                        `last_name.ilike.%${term}%`,
+                    ])
+                    .join(",");
+
+                // Query filtered rows server-side so results are not limited to an arbitrary slice.
                 const { data, error } = await supabase
                     .from("profiles")
                     .select("id, first_name, last_name, avatar_url, sport, university")
                     .neq("approval_status", "rejected")
-                    .limit(100);
+                    .or(orFilters)
+                    .limit(50);
 
                 if (error) {
                     console.error("Search error:", error);
@@ -58,7 +65,7 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                         const fullName = `${firstName} ${lastName}`.toLowerCase();
                         
                         // Check if full name contains search term
-                        if (fullName.includes(query.trim().toLowerCase())) {
+                        if (fullName.includes(trimmedQuery.toLowerCase())) {
                             return true;
                         }
                         
@@ -82,8 +89,8 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                         }
                         
                         // Single term matching in either name
-                        if (firstName.includes(query.trim().toLowerCase()) || 
-                            lastName.includes(query.trim().toLowerCase())) {
+                        if (firstName.includes(trimmedQuery.toLowerCase()) || 
+                            lastName.includes(trimmedQuery.toLowerCase())) {
                             return true;
                         }
                         
