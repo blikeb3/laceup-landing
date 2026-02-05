@@ -21,7 +21,7 @@ export async function downloadResume(
     const blob = await response.blob();
     
     // Create filename with user's first and last name
-    const fileName = `${firstName}_${lastName}_resume.pdf`;
+    const fileName = `${firstName}_${lastName}_Resume.pdf`;
     
     // Create a temporary URL and trigger download
     const url = window.URL.createObjectURL(blob);
