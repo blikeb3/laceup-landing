@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { requestPasswordReset } from "@/lib/passwordReset";
+import { getSecurePasswordResetMessage } from "@/lib/errorMessages";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -31,20 +32,14 @@ const ForgotPassword = () => {
 
     const result = await requestPasswordReset(email);
 
-    if (result.success) {
-      setEmailSent(true);
-      toast({
-        title: "Email Sent",
-        description: result.message,
-      });
-    } else {
-      setError(result.message);
-      toast({
-        title: "Error",
-        description: result.message,
-        variant: "destructive",
-      });
-    }
+    // SECURITY: Always show success to prevent account enumeration
+    // Even if the email doesn't exist, we show the same message
+    setEmailSent(true);
+    const message = getSecurePasswordResetMessage(result.success ? null : result.message);
+    toast({
+      title: "Email Sent",
+      description: message,
+    });
 
     setLoading(false);
   };
