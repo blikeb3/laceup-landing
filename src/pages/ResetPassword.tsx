@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { updatePasswordWithToken, validatePasswordStrength } from "@/lib/passwordReset";
+import { getSecureAuthErrorMessage } from "@/lib/errorMessages";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
@@ -111,10 +113,12 @@ const ResetPassword = () => {
         navigate("/auth");
       }, 2000);
     } else {
-      setError(result.message);
+      // Use secure error message
+      const secureMessage = getSecureAuthErrorMessage(result.message);
+      setError(secureMessage);
       toast({
         title: "Error",
-        description: result.message,
+        description: secureMessage,
         variant: "destructive",
       });
     }
@@ -239,24 +243,8 @@ const ResetPassword = () => {
                 </button>
               </div>
 
-              {/* Password Strength Indicators */}
-              {password && passwordErrors.length > 0 && (
-                <div className="space-y-1 mt-2">
-                  {passwordErrors.map((error, index) => (
-                    <div key={index} className="flex items-center gap-2 text-sm text-red-400">
-                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                      <span>{error}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {password && passwordErrors.length === 0 && (
-                <div className="flex items-center gap-2 text-sm text-green-400 mt-2">
-                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                  <span>Password is strong</span>
-                </div>
-              )}
+              {/* Password Requirements */}
+              <PasswordRequirements password={password} />
             </div>
 
             {/* Confirm Password Field */}
