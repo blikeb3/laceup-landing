@@ -1423,6 +1423,73 @@ const Profile = () => {
             </p>
           </Card>
 
+          {/* Resume Section */}
+          <Card className="p-6">
+            <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+              <FileText className="h-5 w-5 mr-2" />
+              Resume
+            </h2>
+            {profileData.resumeUrl ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-gold" />
+                    <span className="text-sm font-medium">Resume uploaded</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setResumeDialogOpen(true)}
+                  >
+                    <Eye className="h-4 w-4 mr-1" />
+                    View
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-6">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2 opacity-50" />
+                <p className="text-sm text-muted-foreground mb-3">No resume uploaded yet</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setResumeDialogOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload Resume
+                </Button>
+              </div>
+            )}
+          </Card>
+
+          {profileData.degrees && profileData.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {sortDegrees(profileData.degrees).map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card className="p-6">
             <h2 className="text-xl font-heading font-bold mb-4">Skills</h2>
             <div className="flex flex-wrap gap-2">
@@ -1458,34 +1525,6 @@ const Profile = () => {
               <p className="text-foreground leading-relaxed whitespace-pre-line">
                 {profileData.academicAccomplishments}
               </p>
-            </Card>
-          )}
-
-          {profileData.degrees && profileData.degrees.length > 0 && (
-            <Card className="p-6">
-              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education
-              </h2>
-              <div className="space-y-4">
-                {sortDegrees(profileData.degrees).map((degree, index) => (
-                  <div key={index} className="pb-4 border-b last:border-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {degree.degree} {degree.field && `in ${degree.field}`}
-                        </h3>
-                        {degree.institution && (
-                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
-                        )}
-                      </div>
-                      {degree.year && (
-                        <span className="text-sm text-muted-foreground">{degree.year}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </Card>
           )}
 
