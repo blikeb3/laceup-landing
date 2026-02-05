@@ -122,8 +122,65 @@ const Admin = () => {
   const [processingRequestId, setProcessingRequestId] = useState<string | null>(null);
   const [selectedRoleChangeRequest, setSelectedRoleChangeRequest] = useState<RoleChangeRequest | null>(null);
   const [roleChangeDialogOpen, setRoleChangeDialogOpen] = useState(false);
+  
+  // Search and sorting state
+  const [usersSearchQuery, setUsersSearchQuery] = useState("");
+  const [usersSortKey, setUsersSortKey] = useState<keyof Profile | null>(null);
+  const [usersSortAsc, setUsersSortAsc] = useState(true);
+  const [roleChangesSortKey, setRoleChangesSortKey] = useState<keyof RoleChangeRequest | null>(null);
+  const [roleChangesSortAsc, setRoleChangesSortAsc] = useState(true);
+  const [resourcesSortKey, setResourcesSortKey] = useState<keyof Resource | null>(null);
+  const [resourcesSortAsc, setResourcesSortAsc] = useState(true);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Sort helper function
+  const sortData = <T extends Record<string, any>>(
+    data: T[],
+    sortKey: keyof T | null,
+    ascending: boolean
+  ): T[] => {
+    if (!sortKey) return data;
+    
+    const sorted = [...data].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      
+      if (aVal === null || aVal === undefined) return ascending ? 1 : -1;
+      if (bVal === null || bVal === undefined) return ascending ? -1 : 1;
+      
+      if (typeof aVal === 'string' && typeof bVal === 'string') {
+        return ascending ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return ascending ? aVal - bVal : bVal - aVal;
+      }
+      
+      return 0;
+    });
+    
+    return sorted;
+  };
+
+  // Handle sort header click
+  const handleSortClick = <T extends Record<string, any>>(
+    key: keyof T,
+    currentKey: keyof T | null,
+    currentAsc: boolean,
+    setSortKey: (key: keyof T | null) => void,
+    setSortAsc: (asc: boolean) => void
+  ) => {
+    if (currentKey === key) {
+      // If clicking same column, toggle direction
+      setSortAsc(!currentAsc);
+    } else {
+      // If clicking new column, start with ascending
+      setSortKey(key);
+      setSortAsc(true);
+    }
+  };
 
   const fetchDashboardData = useCallback(async () => {
     const { data: allProfilesData } = await supabase
@@ -749,60 +806,112 @@ const Admin = () => {
               <CardDescription>View all users and manage account status</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto -mx-6 px-6">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>University</TableHead>
-                      <TableHead>Sport</TableHead>
-                      <TableHead>Registered</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {allProfiles.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{getFullName(user.first_name, user.last_name) || "—"}</TableCell>
-                        <TableCell className="font-medium">{user.email}</TableCell>
-                        <TableCell>{user.university || "—"}</TableCell>
-                        <TableCell>{user.sport || "—"}</TableCell>
-                        <TableCell>{formatDateLong(user.created_at)}</TableCell>
-                        <TableCell>
-                          {user.approval_status === "rejected" ? (
-                            <Badge variant="destructive">Deactivated</Badge>
-                          ) : (
-                            <Badge variant="default" className="bg-green-600">Active</Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {user.approval_status === "rejected" ? (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleReactivateUser(user.id)}
-                            >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Reactivate
-                            </Button>
-                          ) : (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleRejectUser(user.id)}
-                            >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Deactivate
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="mb-4 space-y-2">
+                <Label htmlFor="users-search">Search users</Label>
+                <Input
+                  id="users-search"
+                  placeholder="Search by name or email..."
+                  value={usersSearchQuery}
+                  onChange={(e) => setUsersSearchQuery(e.target.value)}
+                  className="max-w-md"
+                />
               </div>
+              {(() => {
+                const filtered = allProfiles.filter((user) => {
+                  const query = usersSearchQuery.toLowerCase();
+                  const fullName = getFullName(user.first_name, user.last_name).toLowerCase();
+                  return fullName.includes(query) || user.email.toLowerCase().includes(query);
+                });
+                
+                const sorted = sortData(filtered, usersSortKey, usersSortAsc);
+                
+                return (
+                  <div className="overflow-x-auto -mx-6 px-6">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('first_name', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            Name {usersSortKey === 'first_name' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('email', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            Email {usersSortKey === 'email' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('university', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            University {usersSortKey === 'university' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('sport', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            Sport {usersSortKey === 'sport' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('created_at', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            Registered {usersSortKey === 'created_at' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead 
+                            className="cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleSortClick('approval_status', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                          >
+                            Status {usersSortKey === 'approval_status' && (usersSortAsc ? '↑' : '↓')}
+                          </TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {sorted.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>{getFullName(user.first_name, user.last_name) || "—"}</TableCell>
+                            <TableCell className="font-medium">{user.email}</TableCell>
+                            <TableCell>{user.university || "—"}</TableCell>
+                            <TableCell>{user.sport || "—"}</TableCell>
+                            <TableCell>{formatDateLong(user.created_at)}</TableCell>
+                            <TableCell>
+                              {user.approval_status === "rejected" ? (
+                                <Badge variant="destructive">Deactivated</Badge>
+                              ) : (
+                                <Badge variant="default" className="bg-green-600">Active</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {user.approval_status === "rejected" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleReactivateUser(user.id)}
+                                >
+                                  <UserCheck className="h-4 w-4 mr-1" />
+                                  Reactivate
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleRejectUser(user.id)}
+                                >
+                                  <UserX className="h-4 w-4 mr-1" />
+                                  Deactivate
+                                </Button>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
@@ -824,16 +933,41 @@ const Admin = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>User</TableHead>
-                        <TableHead>Current Role</TableHead>
-                        <TableHead>Requested Role</TableHead>
-                        <TableHead>Reason</TableHead>
-                        <TableHead>Submitted</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('user_id', roleChangesSortKey, roleChangesSortAsc, setRoleChangesSortKey, setRoleChangesSortAsc)}
+                        >
+                          User {roleChangesSortKey === 'user_id' && (roleChangesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('current_role', roleChangesSortKey, roleChangesSortAsc, setRoleChangesSortKey, setRoleChangesSortAsc)}
+                        >
+                          Current Role {roleChangesSortKey === 'current_role' && (roleChangesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('requested_role', roleChangesSortKey, roleChangesSortAsc, setRoleChangesSortKey, setRoleChangesSortAsc)}
+                        >
+                          Requested Role {roleChangesSortKey === 'requested_role' && (roleChangesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('reason', roleChangesSortKey, roleChangesSortAsc, setRoleChangesSortKey, setRoleChangesSortAsc)}
+                        >
+                          Reason {roleChangesSortKey === 'reason' && (roleChangesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('created_at', roleChangesSortKey, roleChangesSortAsc, setRoleChangesSortKey, setRoleChangesSortAsc)}
+                        >
+                          Submitted {roleChangesSortKey === 'created_at' && (roleChangesSortAsc ? '↑' : '↓')}
+                        </TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {roleChangeRequests.map((request) => (
+                      {sortData(roleChangeRequests, roleChangesSortKey, roleChangesSortAsc).map((request) => (
                         <TableRow
                           key={request.id}
                           className="cursor-pointer hover:bg-muted/50"
@@ -1165,20 +1299,48 @@ const Admin = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Title</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-center">
-                          <BarChart3 className="h-4 w-4 inline mr-1" />
-                          Clicks
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('title', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          Title {resourcesSortKey === 'title' && (resourcesSortAsc ? '↑' : '↓')}
                         </TableHead>
-                        <TableHead className="text-center">Featured</TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('category', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          Category {resourcesSortKey === 'category' && (resourcesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('content_type', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          Type {resourcesSortKey === 'content_type' && (resourcesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('is_active', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          Status {resourcesSortKey === 'is_active' && (resourcesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="text-center cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('click_count', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          <BarChart3 className="h-4 w-4 inline mr-1" />
+                          Clicks {resourcesSortKey === 'click_count' && (resourcesSortAsc ? '↑' : '↓')}
+                        </TableHead>
+                        <TableHead 
+                          className="text-center cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleSortClick('is_featured', resourcesSortKey, resourcesSortAsc, setResourcesSortKey, setResourcesSortAsc)}
+                        >
+                          Featured {resourcesSortKey === 'is_featured' && (resourcesSortAsc ? '↑' : '↓')}
+                        </TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {resources.map((resource) => (
+                      {sortData(resources, resourcesSortKey, resourcesSortAsc).map((resource) => (
                         <TableRow key={resource.id}>
                           <TableCell>
                             <div>
