@@ -100,38 +100,6 @@ const MyHub = () => {
   // Check if we should default to connections tab
   const defaultTab = (location.hash === "#connections" || urlSearchQuery) ? "connections" : "suggestions";
 
-  const loadHubData = useCallback(async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      setCurrentUserId(user.id);
-
-      // Fetch current user's profile for matching
-      const { data: currentProfile } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", user.id)
-        .single();
-
-      if (currentProfile) {
-        await Promise.all([
-          fetchSuggestions(user.id, currentProfile),
-          fetchConnections(user.id),
-          fetchGroups(user.id),
-        ]);
-      }
-    } catch (error) {
-      console.error("Error loading hub data:", error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadHubData();
-  }, [loadHubData]);
-
   // Fetch pending connection requests on mount
   useEffect(() => {
     const fetchPendingRequests = async () => {
@@ -169,7 +137,7 @@ const MyHub = () => {
     }
   }, [urlSearchQuery]);
 
-  const fetchSuggestions = useCallback(async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }, reset: boolean = true) => {
+  const fetchSuggestions = useCallback(async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }, reset: boolean = true, searchQuery: string = "", roleFilter: RoleFilter = "all") => {
     if (!reset && loadingSuggestionsRef.current) return;
 
     try {
@@ -203,7 +171,7 @@ const MyHub = () => {
       if (error) throw error;
 
       // Score and sort suggestions based on matching criteria
-      const scored = (data || []).map(profile => {
+      let scored = (data || []).map(profile => {
         let score = 0;
         // Same university
         if (profile.university === currentProfile.university) score += 3;
@@ -243,10 +211,35 @@ const MyHub = () => {
 
       // Sort by score and take top suggestions
       scored.sort((a, b) => b.score - a.score);
-      const topSuggestions = scored;
+      
+      // Apply client-side search and role filters BEFORE pagination
+      const search = searchQuery.trim().toLowerCase();
+      let filteredSuggestions = scored;
+      
+      if (search || roleFilter !== "all") {
+        filteredSuggestions = scored.filter((profile) => {
+          // Role filtering
+          if (roleFilter !== "all") {
+            // Note: role info is not in profile data yet, will check after fetching roles
+            // For now, we'll apply role filtering after role fetch
+          }
 
-      // Fetch roles and badges for suggestions
-      const suggestionIds = topSuggestions.map(s => s.id);
+          // Text filtering
+          if (!search) return true;
+
+          const fullName = (
+            `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+          ).toLowerCase();
+          return (
+            fullName.includes(search) ||
+            (profile.university ?? "").toLowerCase().includes(search) ||
+            (profile.sport ?? "").toLowerCase().includes(search)
+          );
+        });
+      }
+
+      // Fetch roles and badges for suggestions (from filtered list)
+      const suggestionIds = filteredSuggestions.map(s => s.id);
       const rolesMap = await fetchMultipleUserRoles(suggestionIds);
 
       const { data: badgesData } = await supabase
@@ -262,7 +255,7 @@ const MyHub = () => {
         badgesMap.get(badge.user_id).push(badge);
       });
 
-      const suggestionsWithRoles = topSuggestions.map(s => {
+      let suggestionsWithRoles = filteredSuggestions.map(s => {
         const userRoles = rolesMap.get(s.id) || { baseRole: null, hasAdminRole: false };
         return {
           ...s,
@@ -272,7 +265,15 @@ const MyHub = () => {
         };
       });
 
-      // Paginate the sorted results
+      // Apply role filter now that we have role data
+      if (roleFilter !== "all") {
+        suggestionsWithRoles = suggestionsWithRoles.filter((profile) => {
+          const role = (profile.user_role ?? "").toLowerCase();
+          return role === roleFilter;
+        });
+      }
+
+      // Paginate the filtered and sorted results
       const from = reset ? 0 : suggestions.length;
       const to = from + PAGE_SIZE - 1;
       const paginatedSuggestions = suggestionsWithRoles.slice(from, to + 1);
@@ -292,9 +293,9 @@ const MyHub = () => {
         setLoadingSuggestionsMore(false);
       }
     }
-  }, [suggestions.length]);
+  }, [suggestions.length, searchQuery, roleFilter, suggestionsSearchQuery]);
 
-  const fetchConnections = useCallback(async (userId: string, reset: boolean = true) => {
+  const fetchConnections = useCallback(async (userId: string, reset: boolean = true, searchQuery: string = "", roleFilter: RoleFilter = "all") => {
     if (!reset && loadingConnectionsRef.current) return;
 
     try {
@@ -323,8 +324,25 @@ const MyHub = () => {
 
         if (profilesError) throw profilesError;
 
-        // Fetch roles and badges for connections
-        const connectionIds = connectionData.map(c => c.connected_user_id);
+        // Apply search filter to profiles first
+        let filteredProfiles = connectionProfiles || [];
+        const search = searchQuery.trim().toLowerCase();
+        
+        if (search) {
+          filteredProfiles = filteredProfiles.filter((profile) => {
+            const fullName = (
+              `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+            ).toLowerCase();
+            return (
+              fullName.includes(search) ||
+              (profile.university ?? "").toLowerCase().includes(search) ||
+              (profile.sport ?? "").toLowerCase().includes(search)
+            );
+          });
+        }
+
+        // Fetch roles and badges for filtered connections
+        const connectionIds = filteredProfiles.map(c => c.id);
         const rolesMap = await fetchMultipleUserRoles(connectionIds);
 
         const { data: badgesData } = await supabase
@@ -340,7 +358,7 @@ const MyHub = () => {
           badgesMap.get(badge.user_id).push(badge);
         });
 
-        const connectionsWithRoles = (connectionProfiles || []).map(c => {
+        let connectionsWithRoles = filteredProfiles.map(c => {
           const userRoles = rolesMap.get(c.id) || { baseRole: null, hasAdminRole: false };
           return {
             ...c,
@@ -349,6 +367,14 @@ const MyHub = () => {
             user_badges: badgesMap.get(c.id) ?? []
           };
         });
+
+        // Apply role filter
+        if (roleFilter !== "all") {
+          connectionsWithRoles = connectionsWithRoles.filter((profile) => {
+            const role = (profile.user_role ?? "").toLowerCase();
+            return role === roleFilter;
+          });
+        }
 
         if (reset) {
           setConnections(connectionsWithRoles);
@@ -370,7 +396,7 @@ const MyHub = () => {
         setLoadingConnectionsMore(false);
       }
     }
-  }, [connections.length]);
+  }, [connections.length, searchQuery, roleFilter]);
 
   const fetchGroups = useCallback(async (userId: string, reset: boolean = true) => {
     if (!reset && loadingGroupsRef.current) return;
@@ -433,6 +459,38 @@ const MyHub = () => {
       }
     }
   }, [groups.length]);
+
+  const loadHubData = useCallback(async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      setCurrentUserId(user.id);
+
+      // Fetch current user's profile for matching
+      const { data: currentProfile } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", user.id)
+        .single();
+
+      if (currentProfile) {
+        await Promise.all([
+          fetchSuggestions(user.id, currentProfile, true, suggestionsSearchQuery, roleFilter),
+          fetchConnections(user.id, true, searchQuery, roleFilter),
+          fetchGroups(user.id),
+        ]);
+      }
+    } catch (error) {
+      console.error("Error loading hub data:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchSuggestions, fetchConnections, fetchGroups, suggestionsSearchQuery, searchQuery, roleFilter]);
+
+  useEffect(() => {
+    loadHubData();
+  }, [loadHubData]);
 
   const handleConnect = async (profileId: string) => {
     try {
@@ -559,7 +617,7 @@ const MyHub = () => {
               .single();
 
             if (currentProfile) {
-              await fetchSuggestions(user.id, currentProfile, false);
+              await fetchSuggestions(user.id, currentProfile, false, suggestionsSearchQuery, roleFilter);
             }
           });
         }
@@ -572,13 +630,13 @@ const MyHub = () => {
     }
 
     return () => observer.disconnect();
-  }, [hasSuggestionsMore, loadingSuggestionsMore, fetchSuggestions]);
+  }, [hasSuggestionsMore, loadingSuggestionsMore, fetchSuggestions, suggestionsSearchQuery, roleFilter]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasConnectionsMore && !loadingConnectionsMore && currentUserId) {
-          fetchConnections(currentUserId, false);
+          fetchConnections(currentUserId, false, searchQuery, roleFilter);
         }
       },
       { threshold: 0.1 }
@@ -589,7 +647,7 @@ const MyHub = () => {
     }
 
     return () => observer.disconnect();
-  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, fetchConnections]);
+  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, fetchConnections, searchQuery, roleFilter]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -736,26 +794,8 @@ const MyHub = () => {
           </div>
 
           {(() => {
-            const filteredConnections = connections.filter((connection) => {
-              const search = searchQuery.trim().toLowerCase();
-
-              // Role filtering
-              if (roleFilter !== "all") {
-                const role = (connection.user_role ?? "").toLowerCase();
-                if (role !== roleFilter) return false;
-              }
-
-              // Text filtering
-              if (!search) return true;
-
-              const fullName = getFullName(connection.first_name, connection.last_name).toLowerCase();
-              return (
-                fullName.includes(search) ||
-                (connection.university ?? "").toLowerCase().includes(search) ||
-                (connection.sport ?? "").toLowerCase().includes(search)
-              );
-            });
-
+            // Filtering is now done at fetch time, no need for client-side filtering
+            const filteredConnections = connections;
 
             return filteredConnections.length === 0 ? (
               <Card>
@@ -914,26 +954,8 @@ const MyHub = () => {
 
 
           {(() => {
-            const filteredSuggestions = suggestions.filter((profile) => {
-              const search = suggestionsSearchQuery.trim().toLowerCase();
-
-              // Role filtering
-              if (roleFilter !== "all") {
-                const role = (profile.user_role ?? "").toLowerCase();
-                if (role !== roleFilter) return false;
-              }
-
-              // Text filtering
-              if (!search) return true;
-
-              const fullName = getFullName(profile.first_name, profile.last_name).toLowerCase();
-              return (
-                fullName.includes(search) ||
-                (profile.university ?? "").toLowerCase().includes(search) ||
-                (profile.sport ?? "").toLowerCase().includes(search)
-              );
-            });
-
+            // Filtering is now done at fetch time, no need for client-side filtering
+            const filteredSuggestions = suggestions;
 
             return filteredSuggestions.length === 0 ? (
               <Card>

@@ -35,19 +35,62 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
 
             setIsLoading(true);
             try {
+                const terms = query.trim().split(/\s+/);
                 const searchTerm = `%${query.trim()}%`;
+                
+                // Get all profiles and filter client-side for multi-word matching
                 const { data, error } = await supabase
                     .from("profiles")
                     .select("id, first_name, last_name, avatar_url, sport, university")
-                    .or(`first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`)
                     .neq("approval_status", "rejected")
-                    .limit(8);
+                    .limit(100);
 
                 if (error) {
                     console.error("Search error:", error);
                     setResults([]);
                 } else {
-                    setResults(data || []);
+                    const profiles = data || [];
+                    
+                    // Filter results based on matching logic
+                    const filtered = profiles.filter((profile) => {
+                        const firstName = (profile.first_name || "").toLowerCase();
+                        const lastName = (profile.last_name || "").toLowerCase();
+                        const fullName = `${firstName} ${lastName}`.toLowerCase();
+                        
+                        // Check if full name contains search term
+                        if (fullName.includes(query.trim().toLowerCase())) {
+                            return true;
+                        }
+                        
+                        // Check if all search terms match (in order or as substrings)
+                        if (terms.length > 1) {
+                            // Try to match: first word with first_name, second word with last_name
+                            const firstTerm = terms[0].toLowerCase();
+                            const secondTerm = terms.slice(1).join(' ').toLowerCase();
+                            
+                            if (firstName.includes(firstTerm) && lastName.includes(secondTerm)) {
+                                return true;
+                            }
+                            
+                            // Also check reverse (last_name followed by first_name)
+                            const lastTerm = terms[terms.length - 1].toLowerCase();
+                            const firstTerms = terms.slice(0, -1).join(' ').toLowerCase();
+                            
+                            if (firstName.includes(lastTerm) && lastName.includes(firstTerms)) {
+                                return true;
+                            }
+                        }
+                        
+                        // Single term matching in either name
+                        if (firstName.includes(query.trim().toLowerCase()) || 
+                            lastName.includes(query.trim().toLowerCase())) {
+                            return true;
+                        }
+                        
+                        return false;
+                    }).slice(0, 8);
+                    
+                    setResults(filtered);
                     setIsOpen(true);
                 }
             } catch (err) {
