@@ -88,6 +88,20 @@ const MyHub = () => {
   const suggestionsLoadMoreRef = useRef<HTMLDivElement>(null);
   const connectionsLoadMoreRef = useRef<HTMLDivElement>(null);
   const groupsLoadMoreRef = useRef<HTMLDivElement>(null);
+  
+  // Store all filtered data for pagination
+  const allFilteredSuggestionsRef = useRef<Profile[]>([]);
+  const allFilteredConnectionsRef = useRef<Connection[]>([]);
+  const allFilteredGroupsRef = useRef<Group[]>([]);
+  
+  // Track current display counts for pagination
+  const currentConnectionsCountRef = useRef(0);
+  const currentSuggestionsCountRef = useRef(0);
+  
+  // AbortControllers for cancelling requests when filters change
+  const suggestionsAbortControllerRef = useRef<AbortController | null>(null);
+  const connectionsAbortControllerRef = useRef<AbortController | null>(null);
+  const groupsAbortControllerRef = useRef<AbortController | null>(null);
 
   const { toast } = useToast();
 
@@ -137,6 +151,30 @@ const MyHub = () => {
     }
   }, [urlSearchQuery]);
 
+  // Clear cached data when filters change
+  useEffect(() => {
+    // Cancel any in-flight requests
+    if (suggestionsAbortControllerRef.current) {
+      suggestionsAbortControllerRef.current.abort();
+      suggestionsAbortControllerRef.current = null;
+    }
+    if (connectionsAbortControllerRef.current) {
+      connectionsAbortControllerRef.current.abort();
+      connectionsAbortControllerRef.current = null;
+    }
+    if (groupsAbortControllerRef.current) {
+      groupsAbortControllerRef.current.abort();
+      groupsAbortControllerRef.current = null;
+    }
+    
+    // Clear cached filtered data when search or role filter changes
+    allFilteredConnectionsRef.current = [];
+    allFilteredSuggestionsRef.current = [];
+    allFilteredGroupsRef.current = [];
+    currentConnectionsCountRef.current = 0;
+    currentSuggestionsCountRef.current = 0;
+  }, [searchQuery, suggestionsSearchQuery, roleFilter]);
+
   const fetchSuggestions = useCallback(async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }, reset: boolean = true, searchQuery: string = "", roleFilter: RoleFilter = "all") => {
     if (!reset && loadingSuggestionsRef.current) return;
 
@@ -146,11 +184,21 @@ const MyHub = () => {
         setLoadingSuggestionsMore(true);
       }
 
+      // Create new AbortController for this request
+      if (reset) {
+        if (suggestionsAbortControllerRef.current) {
+          suggestionsAbortControllerRef.current.abort();
+        }
+        suggestionsAbortControllerRef.current = new AbortController();
+      }
+      const signal = suggestionsAbortControllerRef.current?.signal;
+
       // Get existing connections
       const { data: existingConnections } = await supabase
         .from("connections")
         .select("connected_user_id")
-        .eq("user_id", userId);
+        .eq("user_id", userId)
+        .abortSignal(signal!);
 
       const connectedIds = existingConnections?.map(c => c.connected_user_id) || [];
 
@@ -159,7 +207,8 @@ const MyHub = () => {
         .from("profiles")
         .select("*", { count: "exact" })
         .neq("id", userId)
-        .neq("approval_status", "rejected");
+        .neq("approval_status", "rejected")
+        .abortSignal(signal!);
 
       // Filter out existing connections
       if (connectedIds.length > 0) {
@@ -273,27 +322,39 @@ const MyHub = () => {
         });
       }
 
-      // Paginate the filtered and sorted results
-      const from = reset ? 0 : suggestions.length;
-      const to = from + PAGE_SIZE - 1;
-      const paginatedSuggestions = suggestionsWithRoles.slice(from, to + 1);
-
       if (reset) {
+        // Store all filtered suggestions for pagination
+        allFilteredSuggestionsRef.current = suggestionsWithRoles;
+        
+        // Paginate initial load
+        const paginatedSuggestions = suggestionsWithRoles.slice(0, PAGE_SIZE);
         setSuggestions(paginatedSuggestions);
+        setHasSuggestionsMore(PAGE_SIZE < suggestionsWithRoles.length);
+        currentSuggestionsCountRef.current = paginatedSuggestions.length;
       } else {
-        setSuggestions(prev => [...prev, ...paginatedSuggestions]);
+        // Load more from cached data
+        const allFiltered = allFilteredSuggestionsRef.current;
+        const currentLength = currentSuggestionsCountRef.current;
+        const from = currentLength;
+        const to = from + PAGE_SIZE;
+        const moreSuggestions = allFiltered.slice(from, to);
+        
+        setSuggestions(prev => [...prev, ...moreSuggestions]);
+        setHasSuggestionsMore(to < allFiltered.length);
+        currentSuggestionsCountRef.current = currentLength + moreSuggestions.length;
       }
-
-      setHasSuggestionsMore(to + 1 < suggestionsWithRoles.length);
-    } catch (error) {
-      console.error("Error fetching suggestions:", error);
+    } catch (error: any) {
+      // Don't log errors for aborted requests
+      if (error?.name !== 'AbortError') {
+        console.error("Error fetching suggestions:", error);
+      }
     } finally {
       if (!reset) {
         loadingSuggestionsRef.current = false;
         setLoadingSuggestionsMore(false);
       }
     }
-  }, [suggestions.length, searchQuery, roleFilter, suggestionsSearchQuery]);
+  }, []);
 
   const fetchConnections = useCallback(async (userId: string, reset: boolean = true, searchQuery: string = "", roleFilter: RoleFilter = "all") => {
     if (!reset && loadingConnectionsRef.current) return;
@@ -304,99 +365,124 @@ const MyHub = () => {
         setLoadingConnectionsMore(true);
       }
 
-      const from = reset ? 0 : connections.length;
-      const to = from + PAGE_SIZE - 1;
-
-      const { data: connectionData, error: connectionsError, count } = await supabase
-        .from("connections")
-        .select("connected_user_id, created_at", { count: "exact" })
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-
-      if (connectionsError) throw connectionsError;
-
-      if (connectionData && connectionData.length > 0) {
-        const { data: connectionProfiles, error: profilesError } = await supabase
-          .from("profiles")
-          .select("id, first_name, last_name, avatar_url, university, sport")
-          .in("id", connectionData.map(c => c.connected_user_id));
-
-        if (profilesError) throw profilesError;
-
-        // Apply search filter to profiles first
-        let filteredProfiles = connectionProfiles || [];
-        const search = searchQuery.trim().toLowerCase();
-        
-        if (search) {
-          filteredProfiles = filteredProfiles.filter((profile) => {
-            const fullName = (
-              `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-            ).toLowerCase();
-            return (
-              fullName.includes(search) ||
-              (profile.university ?? "").toLowerCase().includes(search) ||
-              (profile.sport ?? "").toLowerCase().includes(search)
-            );
-          });
+      // Create new AbortController for this request
+      if (reset) {
+        if (connectionsAbortControllerRef.current) {
+          connectionsAbortControllerRef.current.abort();
         }
-
-        // Fetch roles and badges for filtered connections
-        const connectionIds = filteredProfiles.map(c => c.id);
-        const rolesMap = await fetchMultipleUserRoles(connectionIds);
-
-        const { data: badgesData } = await supabase
-          .from('user_badges')
-          .select('*, badges(*)')
-          .in('user_id', connectionIds);
-
-        const badgesMap = new Map();
-        badgesData?.forEach(badge => {
-          if (!badgesMap.has(badge.user_id)) {
-            badgesMap.set(badge.user_id, []);
-          }
-          badgesMap.get(badge.user_id).push(badge);
-        });
-
-        let connectionsWithRoles = filteredProfiles.map(c => {
-          const userRoles = rolesMap.get(c.id) || { baseRole: null, hasAdminRole: false };
-          return {
-            ...c,
-            user_role: userRoles.baseRole,
-            user_is_admin: userRoles.hasAdminRole,
-            user_badges: badgesMap.get(c.id) ?? []
-          };
-        });
-
-        // Apply role filter
-        if (roleFilter !== "all") {
-          connectionsWithRoles = connectionsWithRoles.filter((profile) => {
-            const role = (profile.user_role ?? "").toLowerCase();
-            return role === roleFilter;
-          });
-        }
-
-        if (reset) {
-          setConnections(connectionsWithRoles);
-        } else {
-          setConnections(prev => [...prev, ...connectionsWithRoles]);
-        }
-
-        const total = count ?? 0;
-        setHasConnectionsMore(from + (connectionData?.length || 0) < total);
-      } else {
-        setHasConnectionsMore(false);
-        if (reset) setConnections([]);
+        connectionsAbortControllerRef.current = new AbortController();
       }
-    } catch (error) {
-      console.error("Error fetching connections:", error);
+      const signal = connectionsAbortControllerRef.current?.signal;
+
+      // Only fetch ALL connections on initial load or when filters change
+      // This ensures we have complete data for client-side filtering and pagination
+      if (reset) {
+        const { data: connectionData, error: connectionsError } = await supabase
+          .from("connections")
+          .select("connected_user_id, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .abortSignal(signal!);
+
+        if (connectionsError) throw connectionsError;
+
+        if (connectionData && connectionData.length > 0) {
+          const { data: connectionProfiles, error: profilesError } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, avatar_url, university, sport")
+            .in("id", connectionData.map(c => c.connected_user_id))
+            .abortSignal(signal!);
+
+          if (profilesError) throw profilesError;
+
+          // Fetch roles and badges for ALL connections
+          const connectionIds = (connectionProfiles || []).map(c => c.id);
+          const rolesMap = await fetchMultipleUserRoles(connectionIds);
+
+          const { data: badgesData } = await supabase
+            .from('user_badges')
+            .select('*, badges(*)')
+            .in('user_id', connectionIds);
+
+          const badgesMap = new Map();
+          badgesData?.forEach(badge => {
+            if (!badgesMap.has(badge.user_id)) {
+              badgesMap.set(badge.user_id, []);
+            }
+            badgesMap.get(badge.user_id).push(badge);
+          });
+
+          let allConnections = (connectionProfiles || []).map(c => {
+            const userRoles = rolesMap.get(c.id) || { baseRole: null, hasAdminRole: false };
+            return {
+              ...c,
+              user_role: userRoles.baseRole,
+              user_is_admin: userRoles.hasAdminRole,
+              user_badges: badgesMap.get(c.id) ?? []
+            };
+          });
+
+          // Apply search filter
+          const search = searchQuery.trim().toLowerCase();
+          if (search) {
+            allConnections = allConnections.filter((profile) => {
+              const fullName = (
+                `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+              ).toLowerCase();
+              return (
+                fullName.includes(search) ||
+                (profile.university ?? "").toLowerCase().includes(search) ||
+                (profile.sport ?? "").toLowerCase().includes(search)
+              );
+            });
+          }
+
+          // Apply role filter
+          if (roleFilter !== "all") {
+            allConnections = allConnections.filter((profile) => {
+              const role = (profile.user_role ?? "").toLowerCase();
+              return role === roleFilter;
+            });
+          }
+
+          // Paginate the filtered results
+          const paginatedConnections = allConnections.slice(0, PAGE_SIZE);
+          setConnections(paginatedConnections);
+          setHasConnectionsMore(PAGE_SIZE < allConnections.length);
+          currentConnectionsCountRef.current = paginatedConnections.length;
+
+          // Store all filtered data for subsequent pagination
+          allFilteredConnectionsRef.current = allConnections;
+        } else {
+          setConnections([]);
+          setHasConnectionsMore(false);
+          allFilteredConnectionsRef.current = [];
+          currentConnectionsCountRef.current = 0;
+        }
+      } else {
+        // Load more from cached filtered data
+        const allFiltered = allFilteredConnectionsRef.current;
+        const currentLength = currentConnectionsCountRef.current;
+        const from = currentLength;
+        const to = from + PAGE_SIZE;
+        const moreConnections = allFiltered.slice(from, to);
+        
+        setConnections(prev => [...prev, ...moreConnections]);
+        setHasConnectionsMore(to < allFiltered.length);
+        currentConnectionsCountRef.current = currentLength + moreConnections.length;
+      }
+    } catch (error: any) {
+      // Don't log errors for aborted requests
+      if (error?.name !== 'AbortError') {
+        console.error("Error fetching connections:", error);
+      }
     } finally {
       if (!reset) {
         loadingConnectionsRef.current = false;
         setLoadingConnectionsMore(false);
       }
     }
-  }, [connections.length, searchQuery, roleFilter]);
+  }, []);
 
   const fetchGroups = useCallback(async (userId: string, reset: boolean = true) => {
     if (!reset && loadingGroupsRef.current) return;
@@ -407,6 +493,15 @@ const MyHub = () => {
         setLoadingGroupsMore(true);
       }
 
+      // Create new AbortController for this request
+      if (reset) {
+        if (groupsAbortControllerRef.current) {
+          groupsAbortControllerRef.current.abort();
+        }
+        groupsAbortControllerRef.current = new AbortController();
+      }
+      const signal = groupsAbortControllerRef.current?.signal;
+
       const from = reset ? 0 : groups.length;
       const to = from + PAGE_SIZE - 1;
 
@@ -415,7 +510,8 @@ const MyHub = () => {
         .from("groups")
         .select("*")
         .eq("is_active", true)
-        .range(from, to);
+        .range(from, to)
+        .abortSignal(signal!);
 
       if (groupsError) throw groupsError;
 
@@ -450,8 +546,11 @@ const MyHub = () => {
       }
 
       setHasGroupsMore((allGroups || []).length === PAGE_SIZE);
-    } catch (error) {
-      console.error("Error fetching groups:", error);
+    } catch (error: any) {
+      // Don't log errors for aborted requests
+      if (error?.name !== 'AbortError') {
+        console.error("Error fetching groups:", error);
+      }
     } finally {
       if (!reset) {
         loadingGroupsRef.current = false;
@@ -604,6 +703,9 @@ const MyHub = () => {
 
   // Infinite scroll observers
   useEffect(() => {
+    // Don't set up observer if we don't have data yet
+    if (!currentUserId) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasSuggestionsMore && !loadingSuggestionsMore) {
@@ -625,29 +727,44 @@ const MyHub = () => {
       { threshold: 0.1 }
     );
 
-    if (suggestionsLoadMoreRef.current) {
-      observer.observe(suggestionsLoadMoreRef.current);
+    const currentRef = suggestionsLoadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
     }
 
-    return () => observer.disconnect();
-  }, [hasSuggestionsMore, loadingSuggestionsMore, fetchSuggestions, suggestionsSearchQuery, roleFilter]);
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+      observer.disconnect();
+    };
+  }, [hasSuggestionsMore, loadingSuggestionsMore, currentUserId, suggestionsSearchQuery, roleFilter]);
 
   useEffect(() => {
+    // Don't set up observer if we don't have data yet
+    if (!currentUserId) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasConnectionsMore && !loadingConnectionsMore && currentUserId) {
+        if (entries[0].isIntersecting && hasConnectionsMore && !loadingConnectionsMore) {
           fetchConnections(currentUserId, false, searchQuery, roleFilter);
         }
       },
       { threshold: 0.1 }
     );
 
-    if (connectionsLoadMoreRef.current) {
-      observer.observe(connectionsLoadMoreRef.current);
+    const currentRef = connectionsLoadMoreRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
     }
 
-    return () => observer.disconnect();
-  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, fetchConnections, searchQuery, roleFilter]);
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+      observer.disconnect();
+    };
+  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, searchQuery, roleFilter]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
