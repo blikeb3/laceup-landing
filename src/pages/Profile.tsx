@@ -16,6 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MapPin, Briefcase, Calendar, Edit, Upload, Users, Eye, FileText, Download, Share2, Trash2, Loader2, ExternalLink, Plus, X, ThumbsUp, UserCog, Trophy, GraduationCap, Mail, Phone, Bookmark, Award } from "lucide-react";
+import { downloadResume } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -626,6 +627,20 @@ const Profile = () => {
       toast({
         title: "Share Failed",
         description: "Could not copy link to clipboard",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const downloadResumeHandler = async () => {
+    if (!profileData.resumeUrl) return;
+
+    try {
+      await downloadResume(profileData.resumeUrl, profileData.firstName, profileData.lastName);
+    } catch (error) {
+      toast({
+        title: "Download Failed",
+        description: "Could not download resume",
         variant: "destructive"
       });
     }
@@ -1852,7 +1867,7 @@ const Profile = () => {
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={() => window.open(profileData.resumeUrl!, '_blank')}
+                        onClick={downloadResumeHandler}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Download
