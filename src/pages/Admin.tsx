@@ -35,7 +35,6 @@ interface Profile {
 
 interface Analytics {
   totalUsers: number;
-  activeUsers: number;
   referralsSent: number;
   referralsAccepted: number;
   totalMessages: number;
@@ -114,7 +113,6 @@ const Admin = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [analytics, setAnalytics] = useState<Analytics>({
     totalUsers: 0,
-    activeUsers: 0,
     referralsSent: 0,
     referralsAccepted: 0,
     totalMessages: 0,
@@ -162,7 +160,6 @@ const Admin = () => {
 
     setAnalytics({
       totalUsers: allProfilesData?.length || 0,
-      activeUsers: allProfilesData?.filter(p => p.approval_status === "approved").length || 0,
       referralsSent: referralsSentData?.length || 0,
       referralsAccepted: referralsAcceptedData?.length || 0,
       totalMessages: messages?.length || 0,
@@ -654,7 +651,7 @@ const Admin = () => {
       </div>
 
       {/* Analytics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -662,16 +659,6 @@ const Admin = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.totalUsers}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active Users</CardTitle>
-            <UserCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{analytics.activeUsers}</div>
           </CardContent>
         </Card>
 

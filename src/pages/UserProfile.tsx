@@ -875,6 +875,35 @@ const UserProfile = () => {
             </Card>
           )}
 
+          {/* Education */}
+          {profile.degrees && profile.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {sortDegrees(profile.degrees).map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Skills Section */}
           {skillsArray.length > 0 && (
             <Card className="p-6">
@@ -906,35 +935,6 @@ const UserProfile = () => {
                 Academic Accomplishments
               </h2>
               <p className="text-foreground leading-relaxed whitespace-pre-line">{profile.academic_accomplishments}</p>
-            </Card>
-          )}
-
-          {/* Education */}
-          {profile.degrees && profile.degrees.length > 0 && (
-            <Card className="p-6">
-              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education
-              </h2>
-              <div className="space-y-4">
-                {sortDegrees(profile.degrees).map((degree, index) => (
-                  <div key={index} className="pb-4 border-b last:border-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {degree.degree} {degree.field && `in ${degree.field}`}
-                        </h3>
-                        {degree.institution && (
-                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
-                        )}
-                      </div>
-                      {degree.year && (
-                        <span className="text-sm text-muted-foreground">{degree.year}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </Card>
           )}
 
