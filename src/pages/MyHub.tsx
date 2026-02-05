@@ -173,6 +173,11 @@ const MyHub = () => {
     allFilteredGroupsRef.current = [];
     currentConnectionsCountRef.current = 0;
     currentSuggestionsCountRef.current = 0;
+    
+    // Reset "has more" flags so infinite scroll can trigger again
+    setHasConnectionsMore(true);
+    setHasSuggestionsMore(true);
+    setHasGroupsMore(true);
   }, [searchQuery, suggestionsSearchQuery, roleFilter]);
 
   const fetchSuggestions = useCallback(async (userId: string, currentProfile: { university?: string; sport?: string; skills?: string[] }, reset: boolean = true, searchQuery: string = "", roleFilter: RoleFilter = "all") => {
@@ -276,11 +281,42 @@ const MyHub = () => {
           // Text filtering
           if (!search) return true;
 
-          const fullName = (
-            `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-          ).toLowerCase();
+          const firstName = (profile.first_name || "").toLowerCase();
+          const lastName = (profile.last_name || "").toLowerCase();
+          const fullName = `${firstName} ${lastName}`.toLowerCase();
+          
+          // Check if full name contains search term
+          if (fullName.includes(search)) {
+            return true;
+          }
+          
+          // Check if search matches combinations of first/last name
+          const terms = search.split(/\s+/);
+          if (terms.length > 1) {
+            // Try to match: first word with first_name, rest with last_name
+            const firstTerm = terms[0].toLowerCase();
+            const secondTerm = terms.slice(1).join(' ').toLowerCase();
+            
+            if (firstName.includes(firstTerm) && lastName.includes(secondTerm)) {
+              return true;
+            }
+            
+            // Also check reverse (last_name followed by first_name)
+            const lastTerm = terms[terms.length - 1].toLowerCase();
+            const firstTerms = terms.slice(0, -1).join(' ').toLowerCase();
+            
+            if (firstName.includes(lastTerm) && lastName.includes(firstTerms)) {
+              return true;
+            }
+          }
+          
+          // Single term matching in either name
+          if (firstName.includes(search) || lastName.includes(search)) {
+            return true;
+          }
+          
+          // Also check university and sport
           return (
-            fullName.includes(search) ||
             (profile.university ?? "").toLowerCase().includes(search) ||
             (profile.sport ?? "").toLowerCase().includes(search)
           );
@@ -345,7 +381,7 @@ const MyHub = () => {
       }
     } catch (error: any) {
       // Don't log errors for aborted requests
-      if (error?.name !== 'AbortError') {
+      if (!error?.message?.includes('AbortError')) {
         console.error("Error fetching suggestions:", error);
       }
     } finally {
@@ -426,11 +462,42 @@ const MyHub = () => {
           const search = searchQuery.trim().toLowerCase();
           if (search) {
             allConnections = allConnections.filter((profile) => {
-              const fullName = (
-                `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-              ).toLowerCase();
+              const firstName = (profile.first_name || "").toLowerCase();
+              const lastName = (profile.last_name || "").toLowerCase();
+              const fullName = `${firstName} ${lastName}`.toLowerCase();
+              
+              // Check if full name contains search term
+              if (fullName.includes(search)) {
+                return true;
+              }
+              
+              // Check if search matches combinations of first/last name
+              const terms = search.split(/\s+/);
+              if (terms.length > 1) {
+                // Try to match: first word with first_name, rest with last_name
+                const firstTerm = terms[0].toLowerCase();
+                const secondTerm = terms.slice(1).join(' ').toLowerCase();
+                
+                if (firstName.includes(firstTerm) && lastName.includes(secondTerm)) {
+                  return true;
+                }
+                
+                // Also check reverse (last_name followed by first_name)
+                const lastTerm = terms[terms.length - 1].toLowerCase();
+                const firstTerms = terms.slice(0, -1).join(' ').toLowerCase();
+                
+                if (firstName.includes(lastTerm) && lastName.includes(firstTerms)) {
+                  return true;
+                }
+              }
+              
+              // Single term matching in either name
+              if (firstName.includes(search) || lastName.includes(search)) {
+                return true;
+              }
+              
+              // Also check university and sport
               return (
-                fullName.includes(search) ||
                 (profile.university ?? "").toLowerCase().includes(search) ||
                 (profile.sport ?? "").toLowerCase().includes(search)
               );
@@ -473,7 +540,7 @@ const MyHub = () => {
       }
     } catch (error: any) {
       // Don't log errors for aborted requests
-      if (error?.name !== 'AbortError') {
+      if (!error?.message?.includes('AbortError')) {
         console.error("Error fetching connections:", error);
       }
     } finally {
@@ -548,7 +615,7 @@ const MyHub = () => {
       setHasGroupsMore((allGroups || []).length === PAGE_SIZE);
     } catch (error: any) {
       // Don't log errors for aborted requests
-      if (error?.name !== 'AbortError') {
+      if (!error?.message?.includes('AbortError')) {
         console.error("Error fetching groups:", error);
       }
     } finally {
@@ -1021,11 +1088,9 @@ const MyHub = () => {
           })()}
 
           {/* Infinite scroll trigger for connections */}
-          {hasConnectionsMore && (
-            <div ref={connectionsLoadMoreRef} className="py-8 text-center">
-              {loadingConnectionsMore && <LoadingSpinner />}
-            </div>
-          )}
+          <div ref={connectionsLoadMoreRef} className="py-8 text-center min-h-16 flex items-center justify-center">
+            {loadingConnectionsMore && hasConnectionsMore && <LoadingSpinner />}
+          </div>
         </TabsContent>
 
         <TabsContent value="suggestions" className="space-y-6">
@@ -1198,11 +1263,9 @@ const MyHub = () => {
           })()}
 
           {/* Infinite scroll trigger for suggestions */}
-          {hasSuggestionsMore && (
-            <div ref={suggestionsLoadMoreRef} className="py-8 text-center">
-              {loadingSuggestionsMore && <LoadingSpinner />}
-            </div>
-          )}
+          <div ref={suggestionsLoadMoreRef} className="py-8 text-center min-h-16 flex items-center justify-center">
+            {loadingSuggestionsMore && hasSuggestionsMore && <LoadingSpinner />}
+          </div>
         </TabsContent>
 
         <TabsContent value="requests" className="space-y-6">
