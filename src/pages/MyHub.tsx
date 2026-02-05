@@ -791,7 +791,7 @@ const MyHub = () => {
           });
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: "400px 0px" }
     );
 
     const currentRef = suggestionsLoadMoreRef.current;
@@ -805,7 +805,7 @@ const MyHub = () => {
       }
       observer.disconnect();
     };
-  }, [hasSuggestionsMore, loadingSuggestionsMore, currentUserId, suggestionsSearchQuery, roleFilter]);
+  }, [hasSuggestionsMore, loadingSuggestionsMore, currentUserId, suggestionsSearchQuery, roleFilter, suggestions.length]);
 
   useEffect(() => {
     // Don't set up observer if we don't have data yet
@@ -817,7 +817,7 @@ const MyHub = () => {
           fetchConnections(currentUserId, false, searchQuery, roleFilter);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: "400px 0px" }
     );
 
     const currentRef = connectionsLoadMoreRef.current;
@@ -831,7 +831,7 @@ const MyHub = () => {
       }
       observer.disconnect();
     };
-  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, searchQuery, roleFilter]);
+  }, [hasConnectionsMore, loadingConnectionsMore, currentUserId, searchQuery, roleFilter, connections.length]);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -840,7 +840,7 @@ const MyHub = () => {
           fetchGroups(currentUserId, false);
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: "400px 0px" }
     );
 
     if (groupsLoadMoreRef.current) {
@@ -848,7 +848,7 @@ const MyHub = () => {
     }
 
     return () => observer.disconnect();
-  }, [hasGroupsMore, loadingGroupsMore, currentUserId, fetchGroups]);
+  }, [hasGroupsMore, loadingGroupsMore, currentUserId, fetchGroups, groups.length]);
 
   const handleJoinGroup = async (groupId: string) => {
     try {
@@ -1088,7 +1088,7 @@ const MyHub = () => {
           })()}
 
           {/* Infinite scroll trigger for connections */}
-          <div ref={connectionsLoadMoreRef} className="py-8 text-center min-h-16 flex items-center justify-center">
+          <div ref={connectionsLoadMoreRef} className="py-12 text-center min-h-32 flex items-center justify-center">
             {loadingConnectionsMore && hasConnectionsMore && <LoadingSpinner />}
           </div>
         </TabsContent>
@@ -1263,7 +1263,7 @@ const MyHub = () => {
           })()}
 
           {/* Infinite scroll trigger for suggestions */}
-          <div ref={suggestionsLoadMoreRef} className="py-8 text-center min-h-16 flex items-center justify-center">
+          <div ref={suggestionsLoadMoreRef} className="py-12 text-center min-h-32 flex items-center justify-center">
             {loadingSuggestionsMore && hasSuggestionsMore && <LoadingSpinner />}
           </div>
         </TabsContent>
@@ -1314,7 +1314,7 @@ const MyHub = () => {
 
           {/* Infinite scroll trigger for groups */}
           {hasGroupsMore && (
-            <div ref={groupsLoadMoreRef} className="py-8 text-center">
+            <div ref={groupsLoadMoreRef} className="py-12 text-center min-h-32 flex items-center justify-center">
               {loadingGroupsMore && <LoadingSpinner />}
             </div>
           )}
