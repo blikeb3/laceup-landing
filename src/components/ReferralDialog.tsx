@@ -139,10 +139,31 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
       onOpenChange(false);
     } catch (error) {
       console.error('Referral send error:', error);
-      let message = 'Could not send invite right now.';
+      let title = "Send failed";
+      let message = "Could not send invite right now. Please try again.";
       
       if (error instanceof Error) {
-        message = error.message;
+        const errorMsg = error.message.toLowerCase();
+        
+        // Specific error messages based on error content
+        if (errorMsg.includes('already invited') || errorMsg.includes('already registered')) {
+          title = "Already invited";
+          message = "This email has already been invited. They can sign up using that email.";
+        } else if (errorMsg.includes('invalid email') || errorMsg.includes('email') && errorMsg.includes('invalid')) {
+          title = "Invalid email";
+          message = "Please check the email address and try again.";
+        } else if (errorMsg.includes('network') || errorMsg.includes('timeout')) {
+          title = "Connection error";
+          message = "Check your internet connection and try again.";
+        } else if (errorMsg.includes('rate limit')) {
+          title = "Too many invites";
+          message = "You've sent too many invites recently. Please try again later.";
+        } else if (errorMsg.includes('not authenticated') || errorMsg.includes('unauthorized')) {
+          title = "Session expired";
+          message = "Please refresh the page and try again.";
+        } else {
+          message = error.message;
+        }
       } else if (typeof error === 'object' && error !== null && 'message' in error) {
         message = String((error as Record<string, unknown>).message);
       } else if (typeof error === 'string') {
@@ -150,7 +171,7 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
       }
       
       toast({ 
-        title: "Send failed", 
+        title, 
         description: message,
         variant: "destructive" 
       });
