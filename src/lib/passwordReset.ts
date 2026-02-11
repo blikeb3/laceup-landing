@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 /**
  * Initiates password reset by sending a reset link to the user's email
  * Uses Supabase's built-in password reset flow
+ * 
+ * SECURITY: Always returns success to prevent account enumeration
+ * Supabase doesn't send email if account doesn't exist, but we don't tell the user
  */
 export const requestPasswordReset = async (email: string): Promise<{ success: boolean; message: string }> => {
   try {
@@ -10,22 +13,22 @@ export const requestPasswordReset = async (email: string): Promise<{ success: bo
       redirectTo: `${window.location.origin}/reset-password`,
     });
 
+    // SECURITY: Log error but don't expose to user whether email exists
     if (error) {
-      return {
-        success: false,
-        message: error.message || "Failed to send password reset email",
-      };
+      console.error("Password reset error:", error);
     }
 
+    // Always return success to prevent account enumeration
     return {
       success: true,
-      message: "Password reset link sent to your email. Please check your inbox.",
+      message: "If an account exists with this email, you will receive a password reset link shortly.",
     };
   } catch (error) {
     console.error("Password reset error:", error);
+    // Still return success to prevent enumeration
     return {
-      success: false,
-      message: "An unexpected error occurred. Please try again later.",
+      success: true,
+      message: "If an account exists with this email, you will receive a password reset link shortly.",
     };
   }
 };

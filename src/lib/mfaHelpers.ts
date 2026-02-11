@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { getSecureMfaErrorMessage } from "@/lib/errorMessages";
 
 export interface MfaFactor {
     id: string;
@@ -161,7 +162,7 @@ export async function createMfaChallenge(factorId: string) {
         console.error("Error creating MFA challenge:", error);
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Failed to create challenge",
+            error: "Unable to create verification challenge. Please try again.",
         };
     }
 }
@@ -185,9 +186,10 @@ export async function verifyMfaCode(factorId: string, challengeId: string, code:
         };
     } catch (error) {
         console.error("Error verifying MFA code:", error);
+        const secureMessage = getSecureMfaErrorMessage(error);
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Invalid code",
+            error: secureMessage,
         };
     }
 }
@@ -310,7 +312,7 @@ export async function verifyBackupCode(userId: string, code: string) {
         if (fetchError || !backupCode) {
             return {
                 success: false,
-                error: "Invalid or already used backup code",
+                error: "Invalid or already used backup code. Please try a different code.",
             };
         }
 
@@ -325,9 +327,10 @@ export async function verifyBackupCode(userId: string, code: string) {
         return { success: true };
     } catch (error) {
         console.error("Error verifying backup code:", error);
+        const secureMessage = getSecureMfaErrorMessage(error);
         return {
             success: false,
-            error: error instanceof Error ? error.message : "Failed to verify backup code",
+            error: secureMessage,
         };
     }
 }
