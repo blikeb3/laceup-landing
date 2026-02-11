@@ -23,6 +23,7 @@ import { SkillSelector } from "@/components/SkillSelector";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ReferralDialog } from "@/components/ReferralDialog";
 import { SecuritySettings } from "@/components/SecuritySettings";
+import AvatarEditor from "@/components/AvatarEditor";
 import { useUserAnalytics, formatCount } from "@/hooks/useUserAnalytics";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
@@ -147,6 +148,9 @@ const Profile = () => {
   const [formData, setFormData] = useState<Profile>(profileData);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFilePreviewUrl, setSelectedFilePreviewUrl] = useState<string | null>(null);
+  const [avatarDraftFile, setAvatarDraftFile] = useState<File | null>(null);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [connections, setConnections] = useState<Array<{ id: string; first_name: string | null; last_name: string | null; university: string | null; avatar_url: string | null }>>([]);
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResume, setSelectedResume] = useState<File | null>(null);
@@ -227,6 +231,16 @@ const Profile = () => {
     setSelectedResumePreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [selectedResume]);
+
+  useEffect(() => {
+    if (!selectedFile) {
+      setSelectedFilePreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setSelectedFilePreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
 
   const fetchProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -487,6 +501,14 @@ const Profile = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast({
+          title: "Invalid File Type",
+          description: "Please upload an image file",
+          variant: "destructive"
+        });
+        return;
+      }
       if (file.size > 40 * 1024 * 1024) {
         toast({
           title: "File Too Large",
@@ -495,8 +517,20 @@ const Profile = () => {
         });
         return;
       }
-      setSelectedFile(file);
+      setAvatarDraftFile(file);
+      setAvatarEditorOpen(true);
     }
+  };
+
+  const handleAvatarEditorSave = (editedFile: File) => {
+    setSelectedFile(editedFile);
+    setAvatarDraftFile(null);
+    setAvatarEditorOpen(false);
+  };
+
+  const handleAvatarEditorCancel = () => {
+    setAvatarDraftFile(null);
+    setAvatarEditorOpen(false);
   };
 
   const uploadAvatar = async (file: File, userId: string) => {
@@ -726,6 +760,8 @@ const Profile = () => {
       setProfileData(updatedData);
       setFormData(updatedData);
       setSelectedFile(null);
+      setAvatarDraftFile(null);
+      setAvatarEditorOpen(false);
       setDialogOpen(false);
 
       toast({
@@ -870,7 +906,7 @@ const Profile = () => {
                         <Label htmlFor="avatar">Profile Picture</Label>
                         <div className="flex items-center space-x-4">
                           <Avatar className="w-20 h-20">
-                            <AvatarImage src={selectedFile ? URL.createObjectURL(selectedFile) : (formData.avatarUrl || undefined)} alt="Preview" />
+                            <AvatarImage src={selectedFilePreviewUrl || formData.avatarUrl || undefined} alt="Preview" />
                             <AvatarFallback className="bg-gold text-navy text-2xl font-bold">
                               {getInitials(formData.firstName, formData.lastName)}
                             </AvatarFallback>
@@ -886,6 +922,31 @@ const Profile = () => {
                             <p className="text-xs text-muted-foreground mt-1">
                               Max file size: 40MB
                             </p>
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {selectedFile && (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setAvatarDraftFile(selectedFile);
+                                    setAvatarEditorOpen(true);
+                                  }}
+                                >
+                                  Edit selected photo
+                                </Button>
+                              )}
+                              {selectedFile && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSelectedFile(null)}
+                                >
+                                  Remove
+                                </Button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1344,6 +1405,8 @@ const Profile = () => {
                           onClick={() => {
                             setFormData(profileData);
                             setSelectedFile(null);
+                            setAvatarDraftFile(null);
+                            setAvatarEditorOpen(false);
                             setDialogOpen(false);
                           }}
                         >
@@ -1358,6 +1421,32 @@ const Profile = () => {
                         </Button>
                       </div>
                     </form>
+                  </DialogContent>
+                </Dialog>
+                <Dialog
+                  open={avatarEditorOpen}
+                  onOpenChange={(open) => {
+                    setAvatarEditorOpen(open);
+                    if (!open) {
+                      setAvatarDraftFile(null);
+                    }
+                  }}
+                >
+                  <DialogContent className="w-[95vw] sm:w-full sm:max-w-lg max-h-[90vh] overflow-y-auto p-0">
+                    <DialogHeader className="p-4 pb-0">
+                      <DialogTitle>Adjust Profile Photo</DialogTitle>
+                      <DialogDescription>
+                        Zoom, align, and rotate your photo before saving.
+                      </DialogDescription>
+                    </DialogHeader>
+                    {avatarDraftFile && (
+                      <AvatarEditor
+                        file={avatarDraftFile}
+                        size={320}
+                        onSave={handleAvatarEditorSave}
+                        onCancel={handleAvatarEditorCancel}
+                      />
+                    )}
                   </DialogContent>
                 </Dialog>
                 {userRole && (
