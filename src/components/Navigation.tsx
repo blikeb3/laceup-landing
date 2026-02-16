@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu } from "lucide-react";
+import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserSearchBar } from "@/components/UserSearchBar";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
+import { useNotifications } from "@/hooks/useNotifications";
 
 export const Navigation = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -16,6 +17,7 @@ export const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     let mounted = true;
@@ -138,6 +140,21 @@ export const Navigation = () => {
       >
         <MessageSquare className="h-4 w-4" />
         Messages
+      </NavLink>
+      <NavLink
+        to="/notifications"
+        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1 relative`}
+        activeClassName="bg-white/10 text-white"
+      >
+        <div className="relative">
+          <Bell className="h-4 w-4" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        Notifications
       </NavLink>
       {isAdmin && (
         <NavLink

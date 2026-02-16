@@ -1034,10 +1034,10 @@ const MyHub = () => {
                                           <img
                                             src={badge.image_url}
                                             alt={badge.name}
-                                            className="w-15 h-15 object-contain"
+                                            className="w-[60px] h-[60px] object-contain"
                                           />
                                         ) : badge.icon ? (
-                                          <span className="text-base">{badge.icon}</span>
+                                          <span className="text-4xl">{badge.icon}</span>
                                         ) : null}
                                       </div>
                                     </TooltipTrigger>
@@ -1189,10 +1189,10 @@ const MyHub = () => {
                                         <img
                                           src={badge.image_url}
                                           alt={badge.name}
-                                          className="w-5 h-5 object-contain"
+                                          className="w-[60px] h-[60px] object-contain"
                                         />
                                       ) : badge.icon ? (
-                                        <span className="text-base">{badge.icon}</span>
+                                        <span className="text-4xl">{badge.icon}</span>
                                       ) : null}
                                     </div>
                                   </TooltipTrigger>

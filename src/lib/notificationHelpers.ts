@@ -181,3 +181,37 @@ export const notifySystem = async (userId: string, title: string, message: strin
         link: link,
     });
 };
+export const notifyFollowersAboutPost = async (postAuthorId: string, authorName: string, postId: string, postPreview: string) => {
+    try {
+        // Get all users who follow this author (users connected to the post author)
+        const { data: followers, error: followersError } = await supabase
+            .from('connections')
+            .select('user_id')
+            .eq('connected_user_id', postAuthorId);
+
+        if (followersError) {
+            console.error('Error fetching followers:', followersError);
+            return;
+        }
+
+        if (!followers || followers.length === 0) {
+            return; // No followers to notify
+        }
+
+        const followerIds = followers.map(f => f.user_id);
+
+        // Create notifications for all followers
+        const notifications = followerIds.map(followerId => ({
+            userId: followerId,
+            type: 'post_publish' as NotificationType,
+            title: 'New Post from Connection',
+            message: `${authorName} shared: "${postPreview.substring(0, 50)}${postPreview.length > 50 ? '...' : ''}"`,
+            link: `/home?post=${postId}`,
+            metadata: { postId, authorId: postAuthorId, authorName },
+        }));
+
+        await createBulkNotifications(notifications);
+    } catch (error) {
+        console.error('Error notifying followers about post:', error);
+    }
+};
