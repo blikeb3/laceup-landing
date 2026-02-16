@@ -60,7 +60,7 @@ export const ConversationItem = ({ conversation, isSelected, onClick }: Conversa
                             )}
                             {conversation.user_role && (
                                 <Badge
-                                    className="text-xs flex-shrink-0 bg-navy text-gold border-navy"
+                                    className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                                 >
                                     {conversation.user_role.charAt(0).toUpperCase() + conversation.user_role.slice(1)}
                                 </Badge>
@@ -78,10 +78,10 @@ export const ConversationItem = ({ conversation, isSelected, onClick }: Conversa
                                                         <img
                                                             src={badge.image_url}
                                                             alt={badge.name}
-                                                            className="w-4 h-4 object-contain"
+                                                            className="w-[60px] h-[60px] object-contain"
                                                         />
                                                     ) : badge.icon ? (
-                                                        <span className="text-sm">{badge.icon}</span>
+                                                        <span className="text-4xl">{badge.icon}</span>
                                                     ) : null}
                                                 </div>
                                             </TooltipTrigger>

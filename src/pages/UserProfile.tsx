@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X } from "lucide-react";
+import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X, Share2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -39,8 +39,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { fetchUserRoles } from "@/lib/roleUtils";
-import { BadgeType, UserBadge, ProfileInfo } from "@/types/posts";
+import { BadgeType, UserBadge, ProfileInfo, Post } from "@/types/posts";
 import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
+import { PostCard } from "@/components/PostCard";
+import { renderPostContent } from "@/lib/htmlUtils";
+import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 
 interface JobExperience {
   id?: string;
@@ -123,6 +126,10 @@ const UserProfile = () => {
   const [connectionsModalOpen, setConnectionsModalOpen] = useState(false);
   const [pendingRequestStatus, setPendingRequestStatus] = useState<"none" | "sent" | "received">("none");
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [allUserPosts, setAllUserPosts] = useState<Post[]>([]);
+  const [displayedPostsCount, setDisplayedPostsCount] = useState(3);
+  const POSTS_PER_PAGE = 3;
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -320,6 +327,44 @@ const UserProfile = () => {
         .eq('user_id', userId);
 
       setUserBadges(badgesData || []);
+
+      // Fetch user's published posts
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey(first_name, last_name, avatar_url),
+          post_likes(id, user_id),
+          post_comments(id, user_id, content, created_at, profiles!post_comments_user_id_fkey(first_name, last_name, avatar_url)),
+          post_bookmarks(id, user_id),
+          post_shares(id),
+          post_media(id, media_url, media_type, display_order)
+        `)
+        .eq('user_id', userId)
+        .eq('is_published', true)
+        .order('published_at', { ascending: false });
+
+      if (!postsError && postsData) {
+        // Fetch user roles and badges for posts
+        const postIds = postsData.map(p => p.user_id);
+        const roleMap = await fetchMultipleUserRoles(postIds);
+        
+        const enrichedPosts = postsData.map((post: any) => {
+          const userRoles = roleMap.get(post.user_id) || { baseRole: null, hasAdminRole: false };
+          return {
+            ...post,
+            user_role: userRoles.baseRole,
+            user_is_admin: userRoles.hasAdminRole,
+            user_badges: userBadges.filter(b => b.user_id === post.user_id),
+          };
+        });
+
+        // Store all posts and set initial display
+        const allPosts = (enrichedPosts as Post[]) || [];
+        setAllUserPosts(allPosts);
+        setUserPosts(allPosts.slice(0, POSTS_PER_PAGE));
+        setDisplayedPostsCount(Math.min(POSTS_PER_PAGE, allPosts.length));
+      }
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -361,6 +406,14 @@ const UserProfile = () => {
     fetchProfile();
     fetchEndorsements();
   }, [fetchProfile, fetchEndorsements]);
+
+  const handleLoadMorePosts = () => {
+    const newCount = displayedPostsCount + POSTS_PER_PAGE;
+    setDisplayedPostsCount(newCount);
+    setUserPosts(allUserPosts.slice(0, newCount));
+  };
+
+  const hasMorePosts = displayedPostsCount < allUserPosts.length;
 
   const handleDeleteEndorsement = async () => {
     if (!myEndorsement) return;
@@ -961,6 +1014,37 @@ const UserProfile = () => {
                   );
                 })}
               </div>
+            </Card>
+          )}
+
+          {/* Posts Section */}
+          {allUserPosts && allUserPosts.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <Share2 className="h-5 w-5 mr-2" />
+                Posts ({displayedPostsCount}/{allUserPosts.length})
+              </h2>
+              <div className="space-y-4">
+                {userPosts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUpdate={() => {}}
+                    currentUserId={currentUserId}
+                  />
+                ))}
+              </div>
+              {hasMorePosts && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMorePosts}
+                    className="gap-2"
+                  >
+                    Load More Posts
+                  </Button>
+                </div>
+              )}
             </Card>
           )}
         </div>

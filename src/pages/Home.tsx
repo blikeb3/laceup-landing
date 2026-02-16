@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { Post, RawPost, PostInsert, UserBadge, PostComment } from "@/types/posts";
-import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
+import { notifyConnectionRequest, notifyConnectionAccepted, notifyFollowersAboutPost } from "@/lib/notificationHelpers";
 
 interface SuggestedProfile {
   id: string;
@@ -917,6 +917,15 @@ const Home = () => {
               display_order: 0
             }]);
         }
+      }
+
+      // Notify followers about new post if it's published (not a draft)
+      if (!saveAsDraft && currentUser) {
+        const authorName = getFullName(currentUser.first_name, currentUser.last_name);
+        const postPreview = processedContent.replace(/<[^>]*>/g, ''); // Strip HTML tags
+        // Note: The notification will be sent to all followers by default
+        // Users can opt out from their profile settings if needed
+        await notifyFollowersAboutPost(user.id, authorName, postId, postPreview);
       }
 
       toast({

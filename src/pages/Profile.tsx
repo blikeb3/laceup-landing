@@ -15,8 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MapPin, Briefcase, Calendar, Edit, Upload, Users, Eye, FileText, Download, Share2, Trash2, Loader2, ExternalLink, Plus, X, ThumbsUp, UserCog, Trophy, GraduationCap, Mail, Phone, Bookmark, Award } from "lucide-react";
-import { downloadResume } from "@/lib/utils";
+import { MapPin, Briefcase, Calendar, Edit, Upload, Users, Eye, FileText, Download, Share2, Trash2, Loader2, ExternalLink, Plus, X, ThumbsUp, UserCog, Trophy, GraduationCap, Mail, Phone, Bookmark, Award, Bell } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -24,7 +23,6 @@ import { SkillSelector } from "@/components/SkillSelector";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { ReferralDialog } from "@/components/ReferralDialog";
 import { SecuritySettings } from "@/components/SecuritySettings";
-import AvatarEditor from "@/components/AvatarEditor";
 import { useUserAnalytics, formatCount } from "@/hooks/useUserAnalytics";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
@@ -149,9 +147,6 @@ const Profile = () => {
   const [formData, setFormData] = useState<Profile>(profileData);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [selectedFilePreviewUrl, setSelectedFilePreviewUrl] = useState<string | null>(null);
-  const [avatarDraftFile, setAvatarDraftFile] = useState<File | null>(null);
-  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [connections, setConnections] = useState<Array<{ id: string; first_name: string | null; last_name: string | null; university: string | null; avatar_url: string | null }>>([]);
   const [resumeDialogOpen, setResumeDialogOpen] = useState(false);
   const [selectedResume, setSelectedResume] = useState<File | null>(null);
@@ -163,6 +158,7 @@ const Profile = () => {
   const [requestedRole, setRequestedRole] = useState<string>("");
   const [roleChangeReason, setRoleChangeReason] = useState<string>("");
   const [submittingRoleChange, setSubmittingRoleChange] = useState(false);
+  const [enablePostNotifications, setEnablePostNotifications] = useState(true);
 
   // 2FA
   const [mfaFactors, setMfaFactors] = useState([]);
@@ -232,16 +228,6 @@ const Profile = () => {
     setSelectedResumePreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [selectedResume]);
-
-  useEffect(() => {
-    if (!selectedFile) {
-      setSelectedFilePreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(selectedFile);
-    setSelectedFilePreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [selectedFile]);
 
   const fetchProfile = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -502,14 +488,6 @@ const Profile = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (!file.type.startsWith("image/")) {
-        toast({
-          title: "Invalid File Type",
-          description: "Please upload an image file",
-          variant: "destructive"
-        });
-        return;
-      }
       if (file.size > 40 * 1024 * 1024) {
         toast({
           title: "File Too Large",
@@ -518,20 +496,8 @@ const Profile = () => {
         });
         return;
       }
-      setAvatarDraftFile(file);
-      setAvatarEditorOpen(true);
+      setSelectedFile(file);
     }
-  };
-
-  const handleAvatarEditorSave = (editedFile: File) => {
-    setSelectedFile(editedFile);
-    setAvatarDraftFile(null);
-    setAvatarEditorOpen(false);
-  };
-
-  const handleAvatarEditorCancel = () => {
-    setAvatarDraftFile(null);
-    setAvatarEditorOpen(false);
   };
 
   const uploadAvatar = async (file: File, userId: string) => {
@@ -666,20 +632,6 @@ const Profile = () => {
     }
   };
 
-  const downloadResumeHandler = async () => {
-    if (!profileData.resumeUrl) return;
-
-    try {
-      await downloadResume(profileData.resumeUrl, profileData.firstName, profileData.lastName);
-    } catch (error) {
-      toast({
-        title: "Download Failed",
-        description: "Could not download resume",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -775,8 +727,6 @@ const Profile = () => {
       setProfileData(updatedData);
       setFormData(updatedData);
       setSelectedFile(null);
-      setAvatarDraftFile(null);
-      setAvatarEditorOpen(false);
       setDialogOpen(false);
 
       toast({
@@ -902,6 +852,16 @@ const Profile = () => {
                 )}
               </div>
               <div className="flex flex-col gap-2">
+                {/* Post Notification Toggle */}
+                <Button
+                  onClick={() => setEnablePostNotifications(!enablePostNotifications)}
+                  variant={enablePostNotifications ? "default" : "outline"}
+                  className={enablePostNotifications ? "bg-gold hover:bg-gold-light text-navy" : ""}
+                  title={enablePostNotifications ? "Followers will be notified when you post" : "Followers will NOT be notified when you post"}
+                >
+                  <Bell className="h-4 w-4 mr-2" />
+                  {enablePostNotifications ? "Notifications On" : "Notifications Off"}
+                </Button>
                 <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                   <DialogTrigger asChild>
                     <Button className="bg-gold hover:bg-gold-light text-navy">
@@ -921,7 +881,7 @@ const Profile = () => {
                         <Label htmlFor="avatar">Profile Picture</Label>
                         <div className="flex items-center space-x-4">
                           <Avatar className="w-20 h-20">
-                            <AvatarImage src={selectedFilePreviewUrl || formData.avatarUrl || undefined} alt="Preview" />
+                            <AvatarImage src={selectedFile ? URL.createObjectURL(selectedFile) : (formData.avatarUrl || undefined)} alt="Preview" />
                             <AvatarFallback className="bg-gold text-navy text-2xl font-bold">
                               {getInitials(formData.firstName, formData.lastName)}
                             </AvatarFallback>
@@ -937,31 +897,6 @@ const Profile = () => {
                             <p className="text-xs text-muted-foreground mt-1">
                               Max file size: 40MB
                             </p>
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {selectedFile && (
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => {
-                                    setAvatarDraftFile(selectedFile);
-                                    setAvatarEditorOpen(true);
-                                  }}
-                                >
-                                  Edit selected photo
-                                </Button>
-                              )}
-                              {selectedFile && (
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setSelectedFile(null)}
-                                >
-                                  Remove
-                                </Button>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </div>
@@ -1420,8 +1355,6 @@ const Profile = () => {
                           onClick={() => {
                             setFormData(profileData);
                             setSelectedFile(null);
-                            setAvatarDraftFile(null);
-                            setAvatarEditorOpen(false);
                             setDialogOpen(false);
                           }}
                         >
@@ -1436,32 +1369,6 @@ const Profile = () => {
                         </Button>
                       </div>
                     </form>
-                  </DialogContent>
-                </Dialog>
-                <Dialog
-                  open={avatarEditorOpen}
-                  onOpenChange={(open) => {
-                    setAvatarEditorOpen(open);
-                    if (!open) {
-                      setAvatarDraftFile(null);
-                    }
-                  }}
-                >
-                  <DialogContent className="w-[95vw] sm:w-full sm:max-w-lg max-h-[90vh] overflow-y-auto p-0">
-                    <DialogHeader className="p-4 pb-0">
-                      <DialogTitle>Adjust Profile Photo</DialogTitle>
-                      <DialogDescription>
-                        Zoom, align, and rotate your photo before saving.
-                      </DialogDescription>
-                    </DialogHeader>
-                    {avatarDraftFile && (
-                      <AvatarEditor
-                        file={avatarDraftFile}
-                        size={320}
-                        onSave={handleAvatarEditorSave}
-                        onCancel={handleAvatarEditorCancel}
-                      />
-                    )}
                   </DialogContent>
                 </Dialog>
                 {userRole && (
@@ -1527,73 +1434,6 @@ const Profile = () => {
             </p>
           </Card>
 
-          {/* Resume Section */}
-          <Card className="p-6">
-            <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
-              <FileText className="h-5 w-5 mr-2" />
-              Resume
-            </h2>
-            {profileData.resumeUrl ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between p-3 bg-secondary rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-5 w-5 text-gold" />
-                    <span className="text-sm font-medium">Resume uploaded</span>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setResumeDialogOpen(true)}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-6">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-2 opacity-50" />
-                <p className="text-sm text-muted-foreground mb-3">No resume uploaded yet</p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setResumeDialogOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Resume
-                </Button>
-              </div>
-            )}
-          </Card>
-
-          {profileData.degrees && profileData.degrees.length > 0 && (
-            <Card className="p-6">
-              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education
-              </h2>
-              <div className="space-y-4">
-                {sortDegrees(profileData.degrees).map((degree, index) => (
-                  <div key={index} className="pb-4 border-b last:border-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {degree.degree} {degree.field && `in ${degree.field}`}
-                        </h3>
-                        {degree.institution && (
-                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
-                        )}
-                      </div>
-                      {degree.year && (
-                        <span className="text-sm text-muted-foreground">{degree.year}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
           <Card className="p-6">
             <h2 className="text-xl font-heading font-bold mb-4">Skills</h2>
             <div className="flex flex-wrap gap-2">
@@ -1629,6 +1469,34 @@ const Profile = () => {
               <p className="text-foreground leading-relaxed whitespace-pre-line">
                 {profileData.academicAccomplishments}
               </p>
+            </Card>
+          )}
+
+          {profileData.degrees && profileData.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {sortDegrees(profileData.degrees).map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </Card>
           )}
 
@@ -1956,7 +1824,7 @@ const Profile = () => {
                       <Button
                         variant="outline"
                         className="flex-1"
-                        onClick={downloadResumeHandler}
+                        onClick={() => window.open(profileData.resumeUrl!, '_blank')}
                       >
                         <Download className="h-4 w-4 mr-2" />
                         Download
