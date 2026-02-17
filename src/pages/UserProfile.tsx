@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X, Share2 } from "lucide-react";
+import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X, Share2, Image as ImageIcon, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -101,6 +102,13 @@ interface MutualConnection {
   university: string | null;
 }
 
+interface UserActivityComment {
+  id: string;
+  post_id: string;
+  content: string;
+  created_at: string;
+}
+
 const UserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -128,6 +136,7 @@ const UserProfile = () => {
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [allUserPosts, setAllUserPosts] = useState<Post[]>([]);
+  const [userComments, setUserComments] = useState<UserActivityComment[]>([]);
   const [displayedPostsCount, setDisplayedPostsCount] = useState(3);
   const POSTS_PER_PAGE = 3;
 
@@ -365,6 +374,16 @@ const UserProfile = () => {
         setUserPosts(allPosts.slice(0, POSTS_PER_PAGE));
         setDisplayedPostsCount(Math.min(POSTS_PER_PAGE, allPosts.length));
       }
+
+      // Fetch comments authored by this user (for Activity section)
+      const { data: commentsData } = await supabase
+        .from("post_comments")
+        .select("id, post_id, content, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      setUserComments((commentsData as UserActivityComment[]) || []);
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -728,6 +747,39 @@ const UserProfile = () => {
   }
 
   const skillsArray = Array.isArray(profile.skills) ? profile.skills : [];
+  const postActivityItems = allUserPosts.map((post) => ({
+    id: `post-${post.id}`,
+    type: "post" as const,
+    created_at: post.created_at || post.published_at || "",
+    text: post.content,
+  }));
+  const mediaActivityItems = allUserPosts.flatMap((post) =>
+    (post.post_media || []).map((media) => ({
+      id: `media-${media.id}`,
+      type: (media.media_type === "video" ? "video" : "image") as const,
+      created_at: post.created_at || post.published_at || "",
+      media_url: media.media_url,
+    }))
+  );
+  const commentActivityItems = userComments.map((comment) => ({
+    id: `comment-${comment.id}`,
+    type: "comment" as const,
+    created_at: comment.created_at,
+    text: comment.content,
+  }));
+  const activityItems = [...postActivityItems, ...mediaActivityItems, ...commentActivityItems]
+    .filter((item) => item.created_at)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const activityPosts = activityItems.filter((item) => item.type === "post").slice(0, 12);
+  const activityComments = activityItems.filter((item) => item.type === "comment").slice(0, 12);
+  const activityImages = activityItems.filter((item) => item.type === "image").slice(0, 12);
+  const activityVideos = activityItems.filter((item) => item.type === "video").slice(0, 12);
+  const activityStats = {
+    posts: postActivityItems.length,
+    comments: commentActivityItems.length,
+    images: mediaActivityItems.filter((item) => item.type === "image").length,
+    videos: mediaActivityItems.filter((item) => item.type === "video").length,
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
@@ -1047,6 +1099,134 @@ const UserProfile = () => {
               )}
             </Card>
           )}
+
+          <Card className="p-6">
+            <h2 className="text-xl font-heading font-bold mb-4">Activity</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Posts</p>
+                <p className="text-lg font-semibold">{activityStats.posts}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Comments</p>
+                <p className="text-lg font-semibold">{activityStats.comments}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Images</p>
+                <p className="text-lg font-semibold">{activityStats.images}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Videos</p>
+                <p className="text-lg font-semibold">{activityStats.videos}</p>
+              </div>
+            </div>
+
+            {activityItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              <Tabs defaultValue="posts" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+                  <TabsTrigger value="posts">Posts</TabsTrigger>
+                  <TabsTrigger value="comments">Comments</TabsTrigger>
+                  <TabsTrigger value="images">Images</TabsTrigger>
+                  <TabsTrigger value="videos">Videos</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="posts" className="space-y-3">
+                  {activityPosts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No posts yet.</p>
+                  ) : (
+                    activityPosts.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><Share2 className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {item.text && (
+                            <p className="text-sm line-clamp-2 whitespace-pre-line">
+                              {item.text.replace(/<[^>]*>/g, "").trim()}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="comments" className="space-y-3">
+                  {activityComments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No comments yet.</p>
+                  ) : (
+                    activityComments.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><MessageSquare className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {item.text && (
+                            <p className="text-sm line-clamp-2 whitespace-pre-line">
+                              {item.text.replace(/<[^>]*>/g, "").trim()}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="images" className="space-y-3">
+                  {activityImages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No images yet.</p>
+                  ) : (
+                    activityImages.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {'media_url' in item && item.media_url && (
+                            <img
+                              src={item.media_url}
+                              alt="Image activity preview"
+                              className="w-20 h-20 rounded object-cover border"
+                            />
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="videos" className="space-y-3">
+                  {activityVideos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No videos yet.</p>
+                  ) : (
+                    activityVideos.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><Video className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {'media_url' in item && item.media_url && (
+                            <video
+                              src={item.media_url}
+                              className="w-24 h-20 rounded border object-cover"
+                              muted
+                              controls
+                            />
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+              </Tabs>
+            )}
+          </Card>
         </div>
 
         {/* Right Column - Endorsements & Connections */}
