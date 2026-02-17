@@ -15,7 +15,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { MapPin, Briefcase, Calendar, Edit, Upload, Users, Eye, FileText, Download, Share2, Trash2, Loader2, ExternalLink, Plus, X, ThumbsUp, UserCog, Trophy, GraduationCap, Mail, Phone, Bookmark, Award, Bell } from "lucide-react";
+import { MapPin, Briefcase, Calendar, Edit, Upload, Users, Eye, FileText, Download, Share2, Trash2, Loader2, ExternalLink, Plus, X, ThumbsUp, UserCog, Trophy, GraduationCap, Mail, Phone, Bookmark, Award, Bell, MessageSquare, Image as ImageIcon, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -111,6 +111,15 @@ interface RoleChangeRequest {
   updated_at: string;
 }
 
+interface ActivityItem {
+  id: string;
+  type: 'post' | 'comment' | 'image' | 'video';
+  created_at: string;
+  text?: string | null;
+  media_url?: string | null;
+  post_id?: string;
+}
+
 const Profile = () => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -159,6 +168,8 @@ const Profile = () => {
   const [roleChangeReason, setRoleChangeReason] = useState<string>("");
   const [submittingRoleChange, setSubmittingRoleChange] = useState(false);
   const [enablePostNotifications, setEnablePostNotifications] = useState(true);
+  const [activityItems, setActivityItems] = useState<ActivityItem[]>([]);
+  const [activityStats, setActivityStats] = useState({ posts: 0, comments: 0, images: 0, videos: 0 });
 
   // 2FA
   const [mfaFactors, setMfaFactors] = useState([]);
@@ -254,6 +265,8 @@ const Profile = () => {
       .select("*, badges(*)")
       .eq("user_id", user.id);
 
+    await fetchActivity(user.id);
+
     if (!error && data) {
       const rawDegrees = (data.degrees as unknown) || [];
       const parsedDegrees: Degree[] = Array.isArray(rawDegrees)
@@ -293,6 +306,68 @@ const Profile = () => {
       setFormData(profile);
     }
     setLoading(false);
+  };
+
+  const fetchActivity = async (userId: string) => {
+    try {
+      const [{ data: postsData }, { data: commentsData }] = await Promise.all([
+        supabase
+          .from("posts")
+          .select("id, content, created_at, post_media(id, media_url, media_type)")
+          .eq("user_id", userId)
+          .eq("is_published", true)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        supabase
+          .from("post_comments")
+          .select("id, content, created_at, post_id")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20)
+      ]);
+
+      const postItems: ActivityItem[] = (postsData || []).map((post: any) => ({
+        id: `post-${post.id}`,
+        type: "post",
+        created_at: post.created_at,
+        text: post.content,
+        post_id: post.id,
+      }));
+
+      const mediaItems: ActivityItem[] = (postsData || []).flatMap((post: any) =>
+        (post.post_media || []).map((media: any) => ({
+          id: `media-${media.id}`,
+          type: media.media_type === "video" ? "video" : "image",
+          created_at: post.created_at,
+          media_url: media.media_url,
+          post_id: post.id,
+        }))
+      );
+
+      const commentItems: ActivityItem[] = (commentsData || []).map((comment: any) => ({
+        id: `comment-${comment.id}`,
+        type: "comment",
+        created_at: comment.created_at,
+        text: comment.content,
+        post_id: comment.post_id,
+      }));
+
+      const allActivity = [...postItems, ...mediaItems, ...commentItems]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 12);
+
+      setActivityItems(allActivity);
+      setActivityStats({
+        posts: postItems.length,
+        comments: commentItems.length,
+        images: mediaItems.filter((item) => item.type === "image").length,
+        videos: mediaItems.filter((item) => item.type === "video").length,
+      });
+    } catch (error) {
+      console.error("Error fetching profile activity:", error);
+      setActivityItems([]);
+      setActivityStats({ posts: 0, comments: 0, images: 0, videos: 0 });
+    }
   };
 
   const handleAuthEmailUpdate = async () => {
@@ -752,6 +827,20 @@ const Profile = () => {
       </div>
     );
   }
+
+  const completionChecks = [
+    !!profileData.avatarUrl,
+    !!profileData.about,
+    !!profileData.biography,
+    !!profileData.location,
+    !!profileData.university,
+    !!profileData.sport,
+    !!profileData.resumeUrl,
+    Array.isArray(profileData.skills) && profileData.skills.length > 0,
+    Array.isArray(profileData.jobExperiences) && profileData.jobExperiences.length > 0,
+    Array.isArray(profileData.degrees) && profileData.degrees.length > 0,
+  ];
+  const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
@@ -1448,6 +1537,63 @@ const Profile = () => {
             </div>
           </Card>
 
+          <Card className="p-6">
+            <h2 className="text-xl font-heading font-bold mb-4">Activity</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Posts</p>
+                <p className="text-lg font-semibold">{activityStats.posts}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Comments</p>
+                <p className="text-lg font-semibold">{activityStats.comments}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Images</p>
+                <p className="text-lg font-semibold">{activityStats.images}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Videos</p>
+                <p className="text-lg font-semibold">{activityStats.videos}</p>
+              </div>
+            </div>
+
+            {activityItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {activityItems.map((item) => (
+                  <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                    <div className="mt-0.5 text-muted-foreground">
+                      {item.type === "post" && <FileText className="h-4 w-4" />}
+                      {item.type === "comment" && <MessageSquare className="h-4 w-4" />}
+                      {item.type === "image" && <ImageIcon className="h-4 w-4" />}
+                      {item.type === "video" && <Video className="h-4 w-4" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground capitalize">{item.type}</p>
+                      {item.text && (
+                        <p className="text-sm line-clamp-2 whitespace-pre-line">
+                          {item.text.replace(/<[^>]*>/g, "").trim()}
+                        </p>
+                      )}
+                      {item.media_url && (
+                        <img
+                          src={item.media_url}
+                          alt={`${item.type} preview`}
+                          className="mt-2 w-16 h-16 rounded object-cover border"
+                        />
+                      )}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
           {profileData.athleticAccomplishments && (
             <Card className="p-6">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
@@ -1594,6 +1740,17 @@ const Profile = () => {
 
           {/* Security Settings */}
           <SecuritySettings userId={currentUserId} userEmail={authEmail} />
+
+          <Card className="p-6">
+            <h3 className="font-semibold mb-2">Profile Completion</h3>
+            <p className="text-2xl font-bold">{completionPercent}%</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Add profile details, skills, education, and resume to strengthen your profile.
+            </p>
+            <div className="w-full h-2 bg-muted rounded-full mt-3 overflow-hidden">
+              <div className="h-full bg-gold" style={{ width: `${completionPercent}%` }} />
+            </div>
+          </Card>
 
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">

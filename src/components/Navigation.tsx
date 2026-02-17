@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { NavLink } from "@/components/NavLink";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu, Bell } from "lucide-react";
+import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu, Bell, House, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserSearchBar } from "@/components/UserSearchBar";
-import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 import { useNotifications } from "@/hooks/useNotifications";
 
 export const Navigation = () => {
@@ -105,45 +104,47 @@ export const Navigation = () => {
       <NavLink
         to="/home"
         end
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
         activeClassName="bg-white/10 text-white"
       >
-        Home
+        <House className="h-4 w-4" />
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Home</span>
       </NavLink>
       <NavLink
         to="/opportunities"
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
         activeClassName="bg-white/10 text-white"
       >
-        Opportunities
+        <Search className="h-4 w-4" />
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Opportunities</span>
       </NavLink>
       <NavLink
         to="/my-hub"
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
         activeClassName="bg-white/10 text-white"
       >
         <Users className="h-4 w-4" />
-        Network
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Network</span>
       </NavLink>
       <NavLink
         to="/lace-hub"
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
         activeClassName="bg-white/10 text-white"
       >
         <Briefcase className="h-4 w-4" />
-        LaceHub
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>LaceHub</span>
       </NavLink>
       <NavLink
         to="/messages"
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
         activeClassName="bg-white/10 text-white"
       >
         <MessageSquare className="h-4 w-4" />
-        Messages
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Messages</span>
       </NavLink>
       <NavLink
         to="/notifications"
-        className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1 relative`}
+        className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all relative`}
         activeClassName="bg-white/10 text-white"
       >
         <div className="relative">
@@ -154,16 +155,16 @@ export const Navigation = () => {
             </span>
           )}
         </div>
-        Notifications
+        <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Notifications</span>
       </NavLink>
       {isAdmin && (
         <NavLink
           to="/admin"
-          className={`${mobile ? 'block w-full' : ''} px-4 py-2 rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all flex items-center gap-1`}
+          className={`${mobile ? 'flex w-full items-center gap-2 px-4 py-2' : 'inline-flex flex-col items-center justify-center min-w-[74px] px-2 py-2'} rounded-lg text-sm font-medium text-white/90 hover:bg-white/10 transition-all`}
           activeClassName="bg-white/10 text-white"
         >
           <Shield className="h-4 w-4" />
-          Admin
+          <span className={`${mobile ? 'inline' : 'hidden lg:inline text-[11px] leading-none mt-1'}`}>Admin</span>
         </NavLink>
       )}
     </>
@@ -179,18 +180,17 @@ export const Navigation = () => {
               <img src="/Logo_No_Background.svg" alt="LaceUP" className="h-10 w-auto" />
               <span className="text-2xl font-heading font-bold text-gold">LaceUP</span>
             </Link>
-            {/* Search Bar - Desktop */}
-            <div className="hidden xl:block">
+            {/* Universal Search Bar */}
+            <div className="hidden md:block">
               <UserSearchBar />
             </div>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden xl:flex items-center space-x-1 gap-1 flex-shrink-0">
+          <div className="hidden md:flex items-center space-x-1 gap-1 flex-shrink-0">
             <NavLinks />
 
-            {/* Notifications */}
-            <NotificationsDropdown />
+            <span className="mx-2 text-white/40 select-none" aria-hidden="true">|</span>
 
             {/* Avatar */}
             <Link to="/profile" className="ml-2 w-9 h-9 rounded-full bg-gold text-navy flex items-center justify-center font-semibold text-sm hover:opacity-80 transition-opacity overflow-hidden">
@@ -210,7 +210,7 @@ export const Navigation = () => {
           </div>
 
           {/* Mobile Navigation */}
-          <div className="flex xl:hidden items-center space-x-2">
+          <div className="flex md:hidden items-center space-x-2">
             <Link to="/profile" className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center font-semibold text-xs overflow-hidden">
               <Avatar imageUrl={userProfile?.avatar_url} />
             </Link>
