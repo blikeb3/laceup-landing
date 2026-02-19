@@ -71,7 +71,7 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
   const [showGallery, setShowGallery] = useState<boolean>(false);
   const [galleryIndex, setGalleryIndex] = useState<number>(0);
   const { toast } = useToast();
-  const LIMIT = 100;
+  const LIMIT = 210;
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // Reset collapse state when post changes
