@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X } from "lucide-react";
+import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loader2, ThumbsUp, Edit2, Trash2, Users, Trophy, GraduationCap, X, Share2, Image as ImageIcon, Video } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
@@ -39,8 +40,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { fetchUserRoles } from "@/lib/roleUtils";
-import { BadgeType, UserBadge, ProfileInfo } from "@/types/posts";
+import { BadgeType, UserBadge, ProfileInfo, Post } from "@/types/posts";
 import { notifyConnectionRequest, notifyConnectionAccepted } from "@/lib/notificationHelpers";
+import { PostCard } from "@/components/PostCard";
+import { renderPostContent } from "@/lib/htmlUtils";
+import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 
 interface JobExperience {
   id?: string;
@@ -98,6 +102,13 @@ interface MutualConnection {
   university: string | null;
 }
 
+interface UserActivityComment {
+  id: string;
+  post_id: string;
+  content: string;
+  created_at: string;
+}
+
 const UserProfile = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
@@ -123,6 +134,11 @@ const UserProfile = () => {
   const [connectionsModalOpen, setConnectionsModalOpen] = useState(false);
   const [pendingRequestStatus, setPendingRequestStatus] = useState<"none" | "sent" | "received">("none");
   const [pendingRequestId, setPendingRequestId] = useState<string | null>(null);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
+  const [allUserPosts, setAllUserPosts] = useState<Post[]>([]);
+  const [userComments, setUserComments] = useState<UserActivityComment[]>([]);
+  const [displayedPostsCount, setDisplayedPostsCount] = useState(3);
+  const POSTS_PER_PAGE = 3;
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -320,6 +336,54 @@ const UserProfile = () => {
         .eq('user_id', userId);
 
       setUserBadges(badgesData || []);
+
+      // Fetch user's published posts
+      const { data: postsData, error: postsError } = await supabase
+        .from('posts')
+        .select(`
+          *,
+          profiles!posts_user_id_fkey(first_name, last_name, avatar_url),
+          post_likes(id, user_id),
+          post_comments(id, user_id, content, created_at, profiles!post_comments_user_id_fkey(first_name, last_name, avatar_url)),
+          post_bookmarks(id, user_id),
+          post_shares(id),
+          post_media(id, media_url, media_type, display_order)
+        `)
+        .eq('user_id', userId)
+        .eq('is_published', true)
+        .order('published_at', { ascending: false });
+
+      if (!postsError && postsData) {
+        // Fetch user roles and badges for posts
+        const postIds = postsData.map(p => p.user_id);
+        const roleMap = await fetchMultipleUserRoles(postIds);
+        
+        const enrichedPosts = postsData.map((post: any) => {
+          const userRoles = roleMap.get(post.user_id) || { baseRole: null, hasAdminRole: false };
+          return {
+            ...post,
+            user_role: userRoles.baseRole,
+            user_is_admin: userRoles.hasAdminRole,
+            user_badges: userBadges.filter(b => b.user_id === post.user_id),
+          };
+        });
+
+        // Store all posts and set initial display
+        const allPosts = (enrichedPosts as Post[]) || [];
+        setAllUserPosts(allPosts);
+        setUserPosts(allPosts.slice(0, POSTS_PER_PAGE));
+        setDisplayedPostsCount(Math.min(POSTS_PER_PAGE, allPosts.length));
+      }
+
+      // Fetch comments authored by this user (for Activity section)
+      const { data: commentsData } = await supabase
+        .from("post_comments")
+        .select("id, post_id, content, created_at")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+      setUserComments((commentsData as UserActivityComment[]) || []);
     } catch (error) {
       console.error("Error fetching profile:", error);
     } finally {
@@ -361,6 +425,14 @@ const UserProfile = () => {
     fetchProfile();
     fetchEndorsements();
   }, [fetchProfile, fetchEndorsements]);
+
+  const handleLoadMorePosts = () => {
+    const newCount = displayedPostsCount + POSTS_PER_PAGE;
+    setDisplayedPostsCount(newCount);
+    setUserPosts(allUserPosts.slice(0, newCount));
+  };
+
+  const hasMorePosts = displayedPostsCount < allUserPosts.length;
 
   const handleDeleteEndorsement = async () => {
     if (!myEndorsement) return;
@@ -675,6 +747,39 @@ const UserProfile = () => {
   }
 
   const skillsArray = Array.isArray(profile.skills) ? profile.skills : [];
+  const postActivityItems = allUserPosts.map((post) => ({
+    id: `post-${post.id}`,
+    type: "post" as const,
+    created_at: post.created_at || post.published_at || "",
+    text: post.content,
+  }));
+  const mediaActivityItems = allUserPosts.flatMap((post) =>
+    (post.post_media || []).map((media) => ({
+      id: `media-${media.id}`,
+      type: (media.media_type === "video" ? "video" : "image") as const,
+      created_at: post.created_at || post.published_at || "",
+      media_url: media.media_url,
+    }))
+  );
+  const commentActivityItems = userComments.map((comment) => ({
+    id: `comment-${comment.id}`,
+    type: "comment" as const,
+    created_at: comment.created_at,
+    text: comment.content,
+  }));
+  const activityItems = [...postActivityItems, ...mediaActivityItems, ...commentActivityItems]
+    .filter((item) => item.created_at)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const activityPosts = activityItems.filter((item) => item.type === "post").slice(0, 12);
+  const activityComments = activityItems.filter((item) => item.type === "comment").slice(0, 12);
+  const activityImages = activityItems.filter((item) => item.type === "image").slice(0, 12);
+  const activityVideos = activityItems.filter((item) => item.type === "video").slice(0, 12);
+  const activityStats = {
+    posts: postActivityItems.length,
+    comments: commentActivityItems.length,
+    images: mediaActivityItems.filter((item) => item.type === "image").length,
+    videos: mediaActivityItems.filter((item) => item.type === "video").length,
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
@@ -712,7 +817,7 @@ const UserProfile = () => {
 
                   {userRole && (
                     <Badge
-                      className="text-xs sm:text-sm px-2 py-0.5 h-6 sm:h-8 bg-navy text-gold border-navy"
+                      className="text-sm sm:text-base px-3 sm:px-4 py-1 sm:py-1.5 bg-navy text-gold border-navy"
                     >
                       {userRole.charAt(0).toUpperCase() + userRole.slice(1)}
                     </Badge>
@@ -730,10 +835,12 @@ const UserProfile = () => {
                                 <img
                                   src={badge.image_url}
                                   alt={badge.name}
-                                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+                                  className="w-12 h-12 sm:w-14 sm:h-14 object-contain"
+
                                 />
                               ) : badge.icon ? (
-                                <span className="text-2xl sm:text-3xl">{badge.icon}</span>
+                                <span className="text-4xl sm:text-5xl">{badge.icon}</span>
+
                               ) : null}
                             </div>
                           </TooltipTrigger>
@@ -873,6 +980,35 @@ const UserProfile = () => {
             </Card>
           )}
 
+          {/* Education */}
+          {profile.degrees && profile.degrees.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Education
+              </h2>
+              <div className="space-y-4">
+                {sortDegrees(profile.degrees).map((degree, index) => (
+                  <div key={index} className="pb-4 border-b last:border-0">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-foreground">
+                          {degree.degree} {degree.field && `in ${degree.field}`}
+                        </h3>
+                        {degree.institution && (
+                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
+                        )}
+                      </div>
+                      {degree.year && (
+                        <span className="text-sm text-muted-foreground">{degree.year}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {/* Skills Section */}
           {skillsArray.length > 0 && (
             <Card className="p-6">
@@ -907,35 +1043,6 @@ const UserProfile = () => {
             </Card>
           )}
 
-          {/* Education */}
-          {profile.degrees && profile.degrees.length > 0 && (
-            <Card className="p-6">
-              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
-                <GraduationCap className="h-5 w-5 mr-2" />
-                Education
-              </h2>
-              <div className="space-y-4">
-                {sortDegrees(profile.degrees).map((degree, index) => (
-                  <div key={index} className="pb-4 border-b last:border-0">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-foreground">
-                          {degree.degree} {degree.field && `in ${degree.field}`}
-                        </h3>
-                        {degree.institution && (
-                          <p className="text-sm text-muted-foreground">{degree.institution}</p>
-                        )}
-                      </div>
-                      {degree.year && (
-                        <span className="text-sm text-muted-foreground">{degree.year}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
           {profile.job_experiences && profile.job_experiences.length > 0 && (
             <Card className="p-6">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
@@ -961,6 +1068,165 @@ const UserProfile = () => {
               </div>
             </Card>
           )}
+
+          {/* Posts Section */}
+          {allUserPosts && allUserPosts.length > 0 && (
+            <Card className="p-6">
+              <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
+                <Share2 className="h-5 w-5 mr-2" />
+                Posts ({displayedPostsCount}/{allUserPosts.length})
+              </h2>
+              <div className="space-y-4">
+                {userPosts.map((post) => (
+                  <PostCard
+                    key={post.id}
+                    post={post}
+                    onUpdate={() => {}}
+                    currentUserId={currentUserId}
+                  />
+                ))}
+              </div>
+              {hasMorePosts && (
+                <div className="mt-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMorePosts}
+                    className="gap-2"
+                  >
+                    Load More Posts
+                  </Button>
+                </div>
+              )}
+            </Card>
+          )}
+
+          <Card className="p-6">
+            <h2 className="text-xl font-heading font-bold mb-4">Activity</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Posts</p>
+                <p className="text-lg font-semibold">{activityStats.posts}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Comments</p>
+                <p className="text-lg font-semibold">{activityStats.comments}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Images</p>
+                <p className="text-lg font-semibold">{activityStats.images}</p>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Videos</p>
+                <p className="text-lg font-semibold">{activityStats.videos}</p>
+              </div>
+            </div>
+
+            {activityItems.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              <Tabs defaultValue="posts" className="space-y-4">
+                <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto">
+                  <TabsTrigger value="posts">Posts</TabsTrigger>
+                  <TabsTrigger value="comments">Comments</TabsTrigger>
+                  <TabsTrigger value="images">Images</TabsTrigger>
+                  <TabsTrigger value="videos">Videos</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="posts" className="space-y-3">
+                  {activityPosts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No posts yet.</p>
+                  ) : (
+                    activityPosts.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><Share2 className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {item.text && (
+                            <p className="text-sm line-clamp-2 whitespace-pre-line">
+                              {item.text.replace(/<[^>]*>/g, "").trim()}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="comments" className="space-y-3">
+                  {activityComments.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No comments yet.</p>
+                  ) : (
+                    activityComments.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><MessageSquare className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {item.text && (
+                            <p className="text-sm line-clamp-2 whitespace-pre-line">
+                              {item.text.replace(/<[^>]*>/g, "").trim()}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="images" className="space-y-3">
+                  {activityImages.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No images yet.</p>
+                  ) : (
+                    activityImages.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><ImageIcon className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {'media_url' in item && item.media_url && (
+                            <img
+                              src={item.media_url}
+                              alt="Image activity preview"
+                              className="w-20 h-20 rounded object-cover border"
+                            />
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+
+                <TabsContent value="videos" className="space-y-3">
+                  {activityVideos.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No videos yet.</p>
+                  ) : (
+                    activityVideos.map((item) => (
+                      <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
+                        <div className="mt-0.5 text-muted-foreground"><Video className="h-4 w-4" /></div>
+                        <div className="flex-1 min-w-0">
+                          {'media_url' in item && item.media_url && (
+                            <video
+                              src={item.media_url}
+                              className="w-24 h-20 rounded border object-cover"
+                              muted
+                              controls
+                            />
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </TabsContent>
+              </Tabs>
+            )}
+          </Card>
         </div>
 
         {/* Right Column - Endorsements & Connections */}

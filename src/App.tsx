@@ -10,9 +10,12 @@ import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import UserProfile from "./pages/UserProfile";
 import Messages from "./pages/Messages";
+import Notifications from "./pages/Notifications";
 import Opportunities from "./pages/Opportunities";
 import Admin from "./pages/Admin";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import LaceHub from "./pages/LaceHub";
 import MyHub from "./pages/MyHub";
 import NotFound from "./pages/NotFound";
@@ -33,6 +36,8 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/auth" element={<Auth />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route
           path="/home"
           element={
@@ -62,6 +67,14 @@ const AppContent = () => {
           element={
             <ProtectedRoute>
               <Messages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute>
+              <Notifications />
             </ProtectedRoute>
           }
         />

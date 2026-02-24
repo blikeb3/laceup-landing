@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,8 @@ import { formatPhoneNumber } from "@/lib/phoneMask";
 import { signInSchema, signUpSchema } from "@/lib/authSchemas";
 import { MfaVerifyDialog } from "@/components/MfaVerifyDialog";
 import { createMfaChallenge, verifyMfaCode, verifyBackupCode } from "@/lib/mfaHelpers";
+import { getSecureAuthErrorMessage } from "@/lib/errorMessages";
+import { PasswordRequirements } from "@/components/PasswordRequirements";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -115,7 +117,13 @@ const Auth = () => {
 
       if (!validationResult.success) {
         const firstError = validationResult.error.errors[0];
-        throw new Error(firstError.message);
+        setLoading(false);
+        toast({
+          title: "Validation Error",
+          description: firstError.message,
+          variant: "destructive",
+        });
+        return;
       }
 
       // Record the signup attempt
@@ -205,9 +213,11 @@ const Auth = () => {
       setSport("");
       setUserType("athlete");
     } catch (error) {
+      // Use secure error messages to prevent account enumeration
+      const secureMessage = getSecureAuthErrorMessage(error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: secureMessage,
         variant: "destructive",
       });
     } finally {
@@ -264,7 +274,8 @@ const Auth = () => {
       if (error) {
         setLoading(false);
 
-        let description = error.message;
+        // Use secure error message that doesn't reveal account existence
+        let description = getSecureAuthErrorMessage(error);
 
         // Record failed attempt only if not on localhost
         if (!isLocalhost) {
@@ -347,9 +358,11 @@ const Auth = () => {
       navigate("/home");
     } catch (error) {
       setLoading(false);
+      // Use secure error messages to prevent information disclosure
+      const secureMessage = getSecureAuthErrorMessage(error);
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "An error occurred during sign in",
+        description: secureMessage,
         variant: "destructive",
       });
     }
@@ -498,6 +511,9 @@ const Auth = () => {
                     required
                   />
                 </div>
+                <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-400 hover:underline">
+                  Forgot your password?
+                </Link>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
@@ -603,6 +619,7 @@ const Auth = () => {
                     required
                     minLength={8}
                   />
+                  <PasswordRequirements password={password} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-confirm-password">Confirm Password <span style={{ color: "red" }}>*</span></Label>
@@ -614,6 +631,13 @@ const Auth = () => {
                     required
                     minLength={8}
                   />
+                  {confirmPassword && password && (
+                    <p className={`text-sm flex items-center gap-1 ${
+                      password === confirmPassword ? 'text-green-400' : 'text-amber-400'
+                    }`}>
+                      {password === confirmPassword ? '✓ Passwords match' : '⚠ Passwords do not match'}
+                    </p>
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Creating account..." : "Sign Up"}

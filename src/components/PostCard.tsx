@@ -71,6 +71,13 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
   const [showGallery, setShowGallery] = useState<boolean>(false);
   const [galleryIndex, setGalleryIndex] = useState<number>(0);
   const { toast } = useToast();
+  const LIMIT = 210;
+  const [isExpanded, setIsExpanded] = useState<boolean>(false);
+
+  // Reset collapse state when post changes
+  useEffect(() => {
+    setIsExpanded(false);
+  }, [post.id]);
 
   // Get media array - prefer post_media if available, otherwise use legacy media_url
   const mediaItems: PostMedia[] = post.post_media && post.post_media.length > 0
@@ -486,8 +493,32 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
   };
 
   const renderContent = () => {
-    const sanitizedContent = renderPostContent(post.content);
-    return <p className="mt-3 text-foreground whitespace-pre-wrap" dangerouslySetInnerHTML={{ __html: sanitizedContent }} />;
+    const raw = post.content ?? "";
+    const shouldCollapse = raw.length > LIMIT;
+
+    const visibleText =
+      shouldCollapse && !isExpanded ? raw.slice(0, LIMIT) + "…" : raw;
+
+    const sanitizedContent = renderPostContent(visibleText);
+
+    return (
+      <div className="mt-3">
+        <p
+          className="text-foreground whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
+        />
+
+        {shouldCollapse && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((v) => !v)}
+            className="mt-2 text-sm text-gold hover:underline"
+          >
+            {isExpanded ? "Show less" : "Show more"}
+          </button>
+        )}
+      </div>
+    );
   };
 
   const authorName = getDisplayName(post.profiles?.first_name, post.profiles?.last_name);
@@ -531,19 +562,22 @@ export const PostCard = ({ post, onUpdate, currentUserId, isDraft = false, isHig
                   return (
                     <TooltipProvider key={userBadge.id}>
                       <Tooltip delayDuration={100}>
+
                         <TooltipTrigger asChild>
                           <div className="cursor-help">
                             {badge.image_url ? (
                               <img
                                 src={badge.image_url}
                                 alt={badge.name}
-                                className="w-5 h-5 object-contain"
+                                className="w-14 h-14 sm:w-18 sm:h-18 object-contain"
+
                               />
                             ) : badge.icon ? (
-                              <span className="text-base">{badge.icon}</span>
+                              <span className="text-4xl sm:text-5xl leading-none">{badge.icon}</span>
                             ) : null}
                           </div>
                         </TooltipTrigger>
+
                         <TooltipContent>
                           <div className="text-sm">
                             <p className="font-semibold">{badge.name}</p>

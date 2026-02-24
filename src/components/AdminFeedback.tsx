@@ -60,7 +60,48 @@ export const AdminFeedback = ({ onFeedbackStatusChanged }: AdminFeedbackProps) =
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [selectedFeedback, setSelectedFeedback] = useState<Feedback | null>(null);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [feedbackSortKey, setFeedbackSortKey] = useState<keyof Feedback | null>(null);
+  const [feedbackSortAsc, setFeedbackSortAsc] = useState(true);
   const { toast } = useToast();
+
+  const sortData = <T extends Record<string, any>>(
+    data: T[],
+    sortKey: keyof T | null,
+    ascending: boolean
+  ): T[] => {
+    if (!sortKey) return data;
+    return [...data].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return ascending ? 1 : -1;
+      if (bVal == null) return ascending ? -1 : 1;
+      const compare =
+        typeof aVal === "string"
+          ? aVal.localeCompare(bVal)
+          : aVal < bVal
+          ? -1
+          : aVal > bVal
+          ? 1
+          : 0;
+      return ascending ? compare : -compare;
+    });
+  };
+
+  const handleSortClick = <T extends Record<string, any>>(
+    key: keyof T,
+    currentKey: keyof T | null,
+    currentAsc: boolean,
+    setSortKey: (key: keyof T | null) => void,
+    setSortAsc: (asc: boolean) => void
+  ) => {
+    if (currentKey === key) {
+      setSortAsc(!currentAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(true);
+    }
+  };
 
   useEffect(() => {
     loadFeedback();
@@ -226,16 +267,46 @@ export const AdminFeedback = ({ onFeedbackStatusChanged }: AdminFeedbackProps) =
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Contact Email</TableHead>
-                  <TableHead>Feedback</TableHead>
-                  <TableHead>Page URL</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('user_name', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    User {feedbackSortKey === 'user_name' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('user_email', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    Contact Email {feedbackSortKey === 'user_email' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('message', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    Feedback {feedbackSortKey === 'message' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('context_url', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    Page URL {feedbackSortKey === 'context_url' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('created_at', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    Submitted {feedbackSortKey === 'created_at' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
+                  <TableHead 
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => handleSortClick('status', feedbackSortKey, feedbackSortAsc, setFeedbackSortKey, setFeedbackSortAsc)}
+                  >
+                    Status {feedbackSortKey === 'status' && (feedbackSortAsc ? '↑' : '↓')}
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredFeedback.map((feedback) => {
+                {sortData(filteredFeedback, feedbackSortKey, feedbackSortAsc).map((feedback) => {
                   const config = STATUS_CONFIG[feedback.status];
                   const StatusIcon = config.icon;
                   return (

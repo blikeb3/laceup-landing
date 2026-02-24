@@ -14,6 +14,7 @@ import { Briefcase, MapPin, Clock, DollarSign, Calendar, Plus, Filter, Building2
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
+import { downloadResume } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FlattenedUserBadge } from "@/types/posts";
 
@@ -1052,15 +1053,28 @@ const Opportunities = () => {
                                               )}
                                               {app.user?.resume_url && (
                                                 <div className="mt-1">
-                                                  <a
-                                                    href={app.user.resume_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1"
-                                                    onClick={(e) => e.stopPropagation()}
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      const nameParts = (app.user?.full_name || '').split(' ');
+                                                      const firstName = nameParts[0] || '';
+                                                      const lastName = nameParts.slice(1).join(' ') || '';
+                                                      downloadResume(
+                                                        app.user.resume_url,
+                                                        firstName,
+                                                        lastName
+                                                      ).catch(() => {
+                                                        toast({
+                                                          title: "Download Failed",
+                                                          description: "Could not download resume",
+                                                          variant: "destructive"
+                                                        });
+                                                      });
+                                                    }}
+                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1 bg-transparent border-0 p-0 cursor-pointer"
                                                   >
                                                     📄 Download Resume
-                                                  </a>
+                                                  </button>
                                                 </div>
                                               )}
                                               <div className="text-xs text-muted-foreground">Applied {app.created_at ? new Date(app.created_at).toLocaleString() : ""}"</div>
@@ -1453,14 +1467,28 @@ const Opportunities = () => {
                                               )}
                                               {app.user?.resume_url && (
                                                 <div className="mt-1">
-                                                  <a
-                                                    href={app.user.resume_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1"
+                                                  <button
+                                                    onClick={(e) => {
+                                                      e.stopPropagation();
+                                                      const nameParts = (app.user?.full_name || '').split(' ');
+                                                      const firstName = nameParts[0] || '';
+                                                      const lastName = nameParts.slice(1).join(' ') || '';
+                                                      downloadResume(
+                                                        app.user.resume_url,
+                                                        firstName,
+                                                        lastName
+                                                      ).catch(() => {
+                                                        toast({
+                                                          title: "Download Failed",
+                                                          description: "Could not download resume",
+                                                          variant: "destructive"
+                                                        });
+                                                      });
+                                                    }}
+                                                    className="text-xs text-gold hover:text-gold-light underline inline-flex items-center gap-1 bg-transparent border-0 p-0 cursor-pointer"
                                                   >
                                                     📄 Download Resume
-                                                  </a>
+                                                  </button>
                                                 </div>
                                               )}
                                               <div className="text-xs text-muted-foreground">Applied {app.created_at ? new Date(app.created_at).toLocaleString() : ""}</div>

@@ -17,6 +17,7 @@ export type NotificationType =
     | 'post_like'
     | 'post_comment'
     | 'post_mention'
+    | 'post_publish'
     | 'message'
     | 'endorsement'
     | 'opportunity'
