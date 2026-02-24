@@ -338,7 +338,7 @@ export const NewConversationView = ({
 
                                         {connection.user_role && (
                                             <Badge
-                                                className="text-[10px] px-1 py-0 flex-shrink-0 bg-navy text-gold border-navy"
+                                                className="text-2xl px-4 py-2 h-[72px] flex-shrink-0 bg-navy text-gold border-navy"
                                             >
                                                 {connection.user_role.charAt(0).toUpperCase() + connection.user_role.slice(1)}
                                             </Badge>
@@ -356,10 +356,10 @@ export const NewConversationView = ({
                                                                         <img
                                                                             src={badge.image_url}
                                                                             alt={badge.name}
-                                                                            className="w-4 h-4 object-contain"
+                                                                            className="w-[60px] h-[60px] object-contain"
                                                                         />
                                                                     ) : badge.icon ? (
-                                                                        <span className="text-sm">{badge.icon}</span>
+                                                                        <span className="text-4xl">{badge.icon}</span>
                                                                     ) : null}
                                                                 </div>
                                                             </TooltipTrigger>

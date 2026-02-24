@@ -264,7 +264,7 @@ export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConve
 
                             {conversation.user_role && (
                                 <Badge
-                                    className="text-xs bg-navy text-gold border-navy"
+                                    className="text-xs px-1.5 py-0.5 bg-navy text-gold border-navy"
                                 >
                                     {conversation.user_role.charAt(0).toUpperCase() + conversation.user_role.slice(1)}
                                 </Badge>
@@ -282,10 +282,10 @@ export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConve
                                                         <img
                                                             src={badge.image_url}
                                                             alt={badge.name}
-                                                            className="w-5 h-5 object-contain"
+                                                            className="w-[72px] h-[72px] object-contain"
                                                         />
                                                     ) : badge.icon ? (
-                                                        <span className="text-base">{badge.icon}</span>
+                                                        <span className="text-5xl">{badge.icon}</span>
                                                     ) : null}
                                                 </div>
                                             </TooltipTrigger>

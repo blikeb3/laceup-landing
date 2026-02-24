@@ -67,7 +67,48 @@ export const AdminUsers = () => {
   const [removingBadge, setRemovingBadge] = useState<string | null>(null);
   const [deletingBadge, setDeletingBadge] = useState<string | null>(null);
   const [editingBadgeId, setEditingBadgeId] = useState<string | null>(null);
+  const [usersSortKey, setUsersSortKey] = useState<keyof UserWithBadges | null>(null);
+  const [usersSortAsc, setUsersSortAsc] = useState(true);
   const { toast } = useToast();
+
+  const sortData = <T extends Record<string, any>>(
+    data: T[],
+    sortKey: keyof T | null,
+    ascending: boolean
+  ): T[] => {
+    if (!sortKey) return data;
+    return [...data].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return ascending ? 1 : -1;
+      if (bVal == null) return ascending ? -1 : 1;
+      const compare =
+        typeof aVal === "string"
+          ? aVal.localeCompare(bVal)
+          : aVal < bVal
+          ? -1
+          : aVal > bVal
+          ? 1
+          : 0;
+      return ascending ? compare : -compare;
+    });
+  };
+
+  const handleSortClick = <T extends Record<string, any>>(
+    key: keyof T,
+    currentKey: keyof T | null,
+    currentAsc: boolean,
+    setSortKey: (key: keyof T | null) => void,
+    setSortAsc: (asc: boolean) => void
+  ) => {
+    if (currentKey === key) {
+      setSortAsc(!currentAsc);
+    } else {
+      setSortKey(key);
+      setSortAsc(true);
+    }
+  };
 
   const loadBadges = useCallback(async () => {
     try {
@@ -584,14 +625,29 @@ export const AdminUsers = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Joined</TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSortClick('first_name', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                    >
+                      User {usersSortKey === 'first_name' && (usersSortAsc ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSortClick('email', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                    >
+                      Email {usersSortKey === 'email' && (usersSortAsc ? '↑' : '↓')}
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleSortClick('created_at', usersSortKey, usersSortAsc, setUsersSortKey, setUsersSortAsc)}
+                    >
+                      Joined {usersSortKey === 'created_at' && (usersSortAsc ? '↑' : '↓')}
+                    </TableHead>
                     <TableHead>Badges</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {sortData(filteredUsers, usersSortKey, usersSortAsc).map((user) => (
                     <TableRow key={user.id}>
                       <TableCell className="font-medium">
                         <Link
