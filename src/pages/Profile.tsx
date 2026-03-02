@@ -841,6 +841,22 @@ const Profile = () => {
     Array.isArray(profileData.degrees) && profileData.degrees.length > 0,
   ];
   const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+  const profileSections = [
+    { id: "profile-about", label: "About", visible: true },
+    { id: "profile-skills", label: "Skills", visible: true },
+    { id: "profile-activity", label: "Activity", visible: true },
+    { id: "profile-athletics", label: "Athletics", visible: !!profileData.athleticAccomplishments },
+    { id: "profile-academics", label: "Academics", visible: !!profileData.academicAccomplishments },
+    { id: "profile-education", label: "Education", visible: Array.isArray(profileData.degrees) && profileData.degrees.length > 0 },
+    { id: "profile-experience", label: "Experience", visible: Array.isArray(profileData.jobExperiences) && profileData.jobExperiences.length > 0 },
+  ].filter((section) => section.visible);
+
+  const scrollToSection = (sectionId: string) => {
+    const sectionElement = document.getElementById(sectionId);
+    if (sectionElement) {
+      sectionElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
@@ -1513,17 +1529,33 @@ const Profile = () => {
         </div>
       </Card>
 
+      <Card className="p-3 sm:p-4 mb-6 sticky top-16 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex w-full items-center justify-center gap-2 overflow-x-auto whitespace-nowrap">
+          {profileSections.map((section) => (
+            <Button
+              key={section.id}
+              variant="ghost"
+              size="sm"
+              onClick={() => scrollToSection(section.id)}
+              className="rounded-full border"
+            >
+              {section.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* About & Skills */}
         <div className="lg:col-span-2 space-y-6">
-          <Card className="p-6">
+          <Card id="profile-about" className="p-6 scroll-mt-28">
             <h2 className="text-xl font-heading font-bold mb-4">About</h2>
             <p className="text-foreground leading-relaxed whitespace-pre-line">
               {profileData.about || ''}
             </p>
           </Card>
 
-          <Card className="p-6">
+          <Card id="profile-skills" className="p-6 scroll-mt-28">
             <h2 className="text-xl font-heading font-bold mb-4">Skills</h2>
             <div className="flex flex-wrap gap-2">
               {(Array.isArray(formData?.skills)
@@ -1537,7 +1569,7 @@ const Profile = () => {
             </div>
           </Card>
 
-          <Card className="p-6">
+          <Card id="profile-activity" className="p-6 scroll-mt-28">
             <h2 className="text-xl font-heading font-bold mb-4">Activity</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               <div className="rounded-md border p-3">
@@ -1562,7 +1594,7 @@ const Profile = () => {
               <p className="text-sm text-muted-foreground">No activity yet.</p>
             ) : (
               <div className="space-y-3">
-                {activityItems.map((item) => (
+                {activityItems.slice(0, 2).map((item) => (
                   <div key={item.id} className="rounded-md border p-3 flex items-start gap-3">
                     <div className="mt-0.5 text-muted-foreground">
                       {item.type === "post" && <FileText className="h-4 w-4" />}
@@ -1595,7 +1627,7 @@ const Profile = () => {
           </Card>
 
           {profileData.athleticAccomplishments && (
-            <Card className="p-6">
+            <Card id="profile-athletics" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <Trophy className="h-5 w-5 mr-2" />
                 Athletic Accomplishments
@@ -1607,7 +1639,7 @@ const Profile = () => {
           )}
 
           {profileData.academicAccomplishments && (
-            <Card className="p-6">
+            <Card id="profile-academics" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <GraduationCap className="h-5 w-5 mr-2" />
                 Academic Accomplishments
@@ -1619,7 +1651,7 @@ const Profile = () => {
           )}
 
           {profileData.degrees && profileData.degrees.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-education" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <GraduationCap className="h-5 w-5 mr-2" />
                 Education
@@ -1647,7 +1679,7 @@ const Profile = () => {
           )}
 
           {profileData.jobExperiences && profileData.jobExperiences.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-experience" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <Briefcase className="h-5 w-5 mr-2" /> Job Experience
               </h2>

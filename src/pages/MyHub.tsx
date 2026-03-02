@@ -1091,6 +1091,16 @@ const MyHub = () => {
           <div ref={connectionsLoadMoreRef} className="py-12 text-center min-h-32 flex items-center justify-center">
             {loadingConnectionsMore && hasConnectionsMore && <LoadingSpinner />}
           </div>
+          {hasConnectionsMore && !loadingConnectionsMore && (
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => fetchConnections(currentUserId, false, searchQuery, roleFilter)}
+              >
+                Load More Connections
+              </Button>
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="suggestions" className="space-y-6">

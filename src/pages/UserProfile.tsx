@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -137,8 +137,10 @@ const UserProfile = () => {
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [allUserPosts, setAllUserPosts] = useState<Post[]>([]);
   const [userComments, setUserComments] = useState<UserActivityComment[]>([]);
-  const [displayedPostsCount, setDisplayedPostsCount] = useState(3);
-  const POSTS_PER_PAGE = 3;
+  const [displayedPostsCount, setDisplayedPostsCount] = useState(1);
+  const [activeSection, setActiveSection] = useState("profile-about");
+  const POSTS_PER_PAGE = 1;
+  const ACTIVITY_PREVIEW_LIMIT = 2;
 
   const sortJobExperiences = (jobs: JobExperience[] = []) => {
     return [...jobs].sort((a, b) => {
@@ -730,6 +732,101 @@ const UserProfile = () => {
     }
   };
 
+  const skillsArray = Array.isArray(profile?.skills) ? profile.skills : [];
+  const postActivityItems = allUserPosts.map((post) => ({
+    id: `post-${post.id}`,
+    type: "post" as const,
+    created_at: post.created_at || post.published_at || "",
+    text: post.content,
+  }));
+  const mediaActivityItems = allUserPosts.flatMap((post) =>
+    (post.post_media || []).map((media) => ({
+      id: `media-${media.id}`,
+      type: (media.media_type === "video" ? ("video" as const) : ("image" as const)),
+      created_at: post.created_at || post.published_at || "",
+      media_url: media.media_url,
+    }))
+  );
+  const commentActivityItems = userComments.map((comment) => ({
+    id: `comment-${comment.id}`,
+    type: "comment" as const,
+    created_at: comment.created_at,
+    text: comment.content,
+  }));
+  const activityItems = [...postActivityItems, ...mediaActivityItems, ...commentActivityItems]
+    .filter((item) => item.created_at)
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const activityPosts = activityItems.filter((item) => item.type === "post").slice(0, ACTIVITY_PREVIEW_LIMIT);
+  const activityComments = activityItems.filter((item) => item.type === "comment").slice(0, ACTIVITY_PREVIEW_LIMIT);
+  const activityImages = activityItems.filter((item) => item.type === "image").slice(0, ACTIVITY_PREVIEW_LIMIT);
+  const activityVideos = activityItems.filter((item) => item.type === "video").slice(0, ACTIVITY_PREVIEW_LIMIT);
+  const activityStats = {
+    posts: postActivityItems.length,
+    comments: commentActivityItems.length,
+    images: mediaActivityItems.filter((item) => item.type === "image").length,
+    videos: mediaActivityItems.filter((item) => item.type === "video").length,
+  };
+  const profileSections = useMemo(() => ([
+    { id: "profile-about", label: "About", visible: !!profile?.about },
+    { id: "profile-education", label: "Education", visible: !!(profile?.degrees && profile.degrees.length > 0) },
+    { id: "profile-skills", label: "Skills", visible: skillsArray.length > 0 },
+    { id: "profile-athletics", label: "Athletics", visible: !!profile?.athletic_accomplishments },
+    { id: "profile-academics", label: "Academics", visible: !!profile?.academic_accomplishments },
+    { id: "profile-experience", label: "Experience", visible: !!(profile?.job_experiences && profile.job_experiences.length > 0) },
+    { id: "profile-posts", label: "Posts", visible: allUserPosts.length > 0 },
+    { id: "profile-activity", label: "Activity", visible: true },
+  ].filter((section) => section.visible)), [
+    profile?.about,
+    profile?.degrees,
+    skillsArray.length,
+    profile?.athletic_accomplishments,
+    profile?.academic_accomplishments,
+    profile?.job_experiences,
+    allUserPosts.length,
+  ]);
+
+  const scrollToSection = (sectionId: string) => {
+    const sectionElement = document.getElementById(sectionId);
+    if (sectionElement) {
+      setActiveSection(sectionId);
+      sectionElement.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  useEffect(() => {
+    if (!profileSections.some((section) => section.id === activeSection) && profileSections[0]) {
+      setActiveSection(profileSections[0].id);
+    }
+  }, [profileSections, activeSection]);
+
+  useEffect(() => {
+    if (profileSections.length === 0) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+
+        if (visibleEntries[0]?.target?.id) {
+          setActiveSection(visibleEntries[0].target.id);
+        }
+      },
+      {
+        root: null,
+        rootMargin: "-180px 0px -55% 0px",
+        threshold: [0.1, 0.25, 0.5],
+      }
+    );
+
+    profileSections.forEach((section) => {
+      const sectionElement = document.getElementById(section.id);
+      if (sectionElement) observer.observe(sectionElement);
+    });
+
+    return () => observer.disconnect();
+  }, [profileSections]);
+
   if (loading) {
     return (
       <div className="container mx-auto p-8 pt-24">
@@ -745,41 +842,6 @@ const UserProfile = () => {
       </div>
     );
   }
-
-  const skillsArray = Array.isArray(profile.skills) ? profile.skills : [];
-  const postActivityItems = allUserPosts.map((post) => ({
-    id: `post-${post.id}`,
-    type: "post" as const,
-    created_at: post.created_at || post.published_at || "",
-    text: post.content,
-  }));
-  const mediaActivityItems = allUserPosts.flatMap((post) =>
-    (post.post_media || []).map((media) => ({
-      id: `media-${media.id}`,
-      type: (media.media_type === "video" ? "video" : "image") as const,
-      created_at: post.created_at || post.published_at || "",
-      media_url: media.media_url,
-    }))
-  );
-  const commentActivityItems = userComments.map((comment) => ({
-    id: `comment-${comment.id}`,
-    type: "comment" as const,
-    created_at: comment.created_at,
-    text: comment.content,
-  }));
-  const activityItems = [...postActivityItems, ...mediaActivityItems, ...commentActivityItems]
-    .filter((item) => item.created_at)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  const activityPosts = activityItems.filter((item) => item.type === "post").slice(0, 12);
-  const activityComments = activityItems.filter((item) => item.type === "comment").slice(0, 12);
-  const activityImages = activityItems.filter((item) => item.type === "image").slice(0, 12);
-  const activityVideos = activityItems.filter((item) => item.type === "video").slice(0, 12);
-  const activityStats = {
-    posts: postActivityItems.length,
-    comments: commentActivityItems.length,
-    images: mediaActivityItems.filter((item) => item.type === "image").length,
-    videos: mediaActivityItems.filter((item) => item.type === "video").length,
-  };
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 sm:py-6">
@@ -968,13 +1030,29 @@ const UserProfile = () => {
         </div>
       </Card>
 
+      <Card className="p-3 sm:p-4 mb-6 sticky top-16 z-20 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className="flex w-full items-center justify-center gap-2 overflow-x-auto whitespace-nowrap">
+          {profileSections.map((section) => (
+            <Button
+              key={section.id}
+              variant={activeSection === section.id ? "default" : "ghost"}
+              size="sm"
+              onClick={() => scrollToSection(section.id)}
+              className={activeSection === section.id ? "rounded-full border" : "rounded-full border hover:bg-secondary"}
+            >
+              {section.label}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - About & Skills */}
         <div className="lg:col-span-2 space-y-6">
           {/* About Section */}
           {profile.about && (
-            <Card className="p-6">
+            <Card id="profile-about" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4">About</h2>
               <p className="text-foreground leading-relaxed whitespace-pre-line">{profile.about}</p>
             </Card>
@@ -982,7 +1060,7 @@ const UserProfile = () => {
 
           {/* Education */}
           {profile.degrees && profile.degrees.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-education" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <GraduationCap className="h-5 w-5 mr-2" />
                 Education
@@ -1011,7 +1089,7 @@ const UserProfile = () => {
 
           {/* Skills Section */}
           {skillsArray.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-skills" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4">Skills</h2>
               <div className="flex flex-wrap gap-2">
                 {skillsArray.map((skill, index) => (
@@ -1023,7 +1101,7 @@ const UserProfile = () => {
 
           {/* Athletic Accomplishments */}
           {profile.athletic_accomplishments && (
-            <Card className="p-6">
+            <Card id="profile-athletics" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <Trophy className="h-5 w-5 mr-2" />
                 Athletic Accomplishments
@@ -1034,7 +1112,7 @@ const UserProfile = () => {
 
           {/* Academic Accomplishments */}
           {profile.academic_accomplishments && (
-            <Card className="p-6">
+            <Card id="profile-academics" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <GraduationCap className="h-5 w-5 mr-2" />
                 Academic Accomplishments
@@ -1044,7 +1122,7 @@ const UserProfile = () => {
           )}
 
           {profile.job_experiences && profile.job_experiences.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-experience" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <Briefcase className="h-5 w-5 mr-2" /> Job Experience
               </h2>
@@ -1071,7 +1149,7 @@ const UserProfile = () => {
 
           {/* Posts Section */}
           {allUserPosts && allUserPosts.length > 0 && (
-            <Card className="p-6">
+            <Card id="profile-posts" className="p-6 scroll-mt-28">
               <h2 className="text-xl font-heading font-bold mb-4 flex items-center">
                 <Share2 className="h-5 w-5 mr-2" />
                 Posts ({displayedPostsCount}/{allUserPosts.length})
@@ -1100,7 +1178,7 @@ const UserProfile = () => {
             </Card>
           )}
 
-          <Card className="p-6">
+          <Card id="profile-activity" className="p-6 scroll-mt-28">
             <h2 className="text-xl font-heading font-bold mb-4">Activity</h2>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
               <div className="rounded-md border p-3">

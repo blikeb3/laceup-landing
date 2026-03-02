@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,94 @@ interface Application {
     resume_url?: string;
   };
 }
+
+const STATE_NAME_TO_ABBR: Record<string, string> = {
+  alabama: "AL",
+  alaska: "AK",
+  arizona: "AZ",
+  arkansas: "AR",
+  california: "CA",
+  colorado: "CO",
+  connecticut: "CT",
+  delaware: "DE",
+  florida: "FL",
+  georgia: "GA",
+  hawaii: "HI",
+  idaho: "ID",
+  illinois: "IL",
+  indiana: "IN",
+  iowa: "IA",
+  kansas: "KS",
+  kentucky: "KY",
+  louisiana: "LA",
+  maine: "ME",
+  maryland: "MD",
+  massachusetts: "MA",
+  michigan: "MI",
+  minnesota: "MN",
+  mississippi: "MS",
+  missouri: "MO",
+  montana: "MT",
+  nebraska: "NE",
+  nevada: "NV",
+  "new hampshire": "NH",
+  "new jersey": "NJ",
+  "new mexico": "NM",
+  "new york": "NY",
+  "north carolina": "NC",
+  "north dakota": "ND",
+  ohio: "OH",
+  oklahoma: "OK",
+  oregon: "OR",
+  pennsylvania: "PA",
+  "rhode island": "RI",
+  "south carolina": "SC",
+  "south dakota": "SD",
+  tennessee: "TN",
+  texas: "TX",
+  utah: "UT",
+  vermont: "VT",
+  virginia: "VA",
+  washington: "WA",
+  "west virginia": "WV",
+  wisconsin: "WI",
+  wyoming: "WY",
+  "district of columbia": "DC",
+};
+
+const STATE_ABBR_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(STATE_NAME_TO_ABBR).map(([name, abbr]) => [abbr.toLowerCase(), name])
+);
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const matchesLocationFilter = (opp: Opportunity, rawFilter: string) => {
+  const query = rawFilter.trim().toLowerCase();
+  if (!query) return true;
+
+  const location = opp.location ?? "";
+  const locationLower = location.toLowerCase();
+  const locationTypeLower = (opp.location_type ?? "").toLowerCase();
+
+  // Base behavior: direct substring matching.
+  if (locationLower.includes(query) || locationTypeLower.includes(query)) {
+    return true;
+  }
+
+  // State alias behavior: "texas" <-> "TX"
+  const stateAbbr = STATE_NAME_TO_ABBR[query];
+  if (stateAbbr) {
+    const abbrRegex = new RegExp(`\\b${escapeRegExp(stateAbbr)}\\b`, "i");
+    if (abbrRegex.test(location)) return true;
+  }
+
+  const stateName = STATE_ABBR_TO_NAME[query];
+  if (stateName && locationLower.includes(stateName)) {
+    return true;
+  }
+
+  return false;
+};
 
 const Opportunities = () => {
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
@@ -193,10 +282,7 @@ const Opportunities = () => {
     }
 
     if (locationFilter) {
-      filtered = filtered.filter((opp) =>
-        opp.location?.toLowerCase().includes(locationFilter.toLowerCase()) ||
-        opp.location_type?.toLowerCase().includes(locationFilter.toLowerCase())
-      );
+      filtered = filtered.filter((opp) => matchesLocationFilter(opp, locationFilter));
     }
 
     if (levelFilter !== "all") {
@@ -1157,7 +1243,16 @@ const Opportunities = () => {
                           <span>Posted {formatDate(opportunity.created_at)}</span>
                           {opportunity.posted_by_name && (
                             <div className="flex items-center flex-wrap gap-2">
-                              <span>by {opportunity.posted_by_name}</span>
+                              <span>
+                                by{" "}
+                                <Link
+                                  to={`/profile/${opportunity.posted_by}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="font-medium text-primary hover:underline"
+                                >
+                                  {opportunity.posted_by_name}
+                                </Link>
+                              </span>
 
                               {opportunity.posted_by_role && (
                                 <Badge
