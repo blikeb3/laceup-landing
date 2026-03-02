@@ -55,47 +55,54 @@ export const useSessionTimeout = () => {
   }, [logout, showWarning]);
 
   useEffect(() => {
-    // Check if user is authenticated
-    const checkAuth = async () => {
+    let cleanup: void | (() => void);
+
+    const setup = async () => {
+      const events = ["mousedown","mousemove","keypress","scroll","touchstart","click"];
+
+      const attach = () => events.forEach((e) => document.addEventListener(e, resetTimer, true));
+      const detach = () => events.forEach((e) => document.removeEventListener(e, resetTimer, true));
+
+      const clearTimers = () => {
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        if (warningTimeoutRef.current) clearTimeout(warningTimeoutRef.current);
+      };
+
+      const start = () => {
+        resetTimer();
+        attach();
+        return () => {
+          detach();
+          clearTimers();
+        };
+      };
+
+      // start if already authed
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        return; // Don't set up timers if not authenticated
-      }
+      if (session) cleanup = start();
 
-      // Start the timer
-      resetTimer();
-
-      // Activity events to track
-      const events = [
-        'mousedown',
-        'mousemove',
-        'keypress',
-        'scroll',
-        'touchstart',
-        'click',
-      ];
-
-      // Add event listeners
-      events.forEach((event) => {
-        document.addEventListener(event, resetTimer, true);
+      // respond to later sign-in/out
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session2) => {
+        if (!session2) {
+          if (cleanup) cleanup();
+          cleanup = undefined;
+          return;
+        }
+        if (!cleanup) cleanup = start();
       });
 
-      // Cleanup function
       return () => {
-        events.forEach((event) => {
-          document.removeEventListener(event, resetTimer, true);
-        });
-
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-        }
-        if (warningTimeoutRef.current) {
-          clearTimeout(warningTimeoutRef.current);
-        }
+        subscription.unsubscribe();
+        if (cleanup) cleanup();
       };
     };
 
-    checkAuth();
+    let unsub: any;
+    setup().then((fn) => (unsub = fn));
+
+    return () => {
+      if (typeof unsub === "function") unsub();
+    };
   }, [resetTimer]);
 
   return { resetTimer };
