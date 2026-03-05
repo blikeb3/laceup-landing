@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage/LandingPage";
 import { PendingRequests } from "./components/PendingRequests";
 import { TooltipProvider } from "./components/ui/tooltip";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -117,6 +118,12 @@ const AppContent = () => {
               <PendingRequests />
             </ProtectedRoute>
           }
+        />
+        <Route 
+          path="/auth/callback" 
+          element={
+          <AuthCallback />
+          } 
         />
         <Route path="*" element={<NotFound />} />
       </Routes>
