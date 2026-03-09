@@ -131,11 +131,20 @@ const Auth = () => {
 
       // SECURITY: Check if password has been exposed in known data breaches
       // This prevents credential stuffing attacks
-      const isExposed = await isPasswordExposed(password);
-      if (isExposed) {
-        throw new Error(
-          "This password has been exposed in known data breaches. For your security, please choose a different password."
-        );
+      try {
+        const isExposed = await isPasswordExposed(password);
+        if (isExposed) {
+            throw new Error(
+      "This password has been exposed in known data breaches. For your security, please choose a different password."
+          );
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message.includes("exposed in known data breaches")) {
+            throw e; // Re-throw the intentional breach warning
+        }
+        // If the breach check itself fails (network issue, mobile browser blocking, etc.)
+        // silently skip it rather than blocking the signup
+        console.warn("Password breach check unavailable, skipping.", e);
       }
 
       const { error: signUpError, data } = await supabase.auth.signUp({
