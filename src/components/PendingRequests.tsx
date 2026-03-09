@@ -102,6 +102,32 @@ export const PendingRequests = ({ embedded = false }: PendingRequestsProps) => {
     }
   }, [currentUserId, fetchPendingRequests]);
 
+  
+  useEffect(() => {
+    if (!currentUserId) return;
+
+    const channel = supabase
+      .channel(`pending_requests:${currentUserId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // INSERT, UPDATE, DELETE
+          schema: 'public',
+          table: 'connection_requests',
+          filter: `receiver_id=eq.${currentUserId}`,
+        },
+        () => {
+          // Re-fetch whenever anything changes
+          fetchPendingRequests();
+        }
+      )
+      .subscribe();
+
+      return () => {
+      channel.unsubscribe();
+    };
+  }, [currentUserId, fetchPendingRequests]);
+
   const handleAccept = async (requestId: string, requesterId: string) => {
     try {
       setProcessingId(requestId);
