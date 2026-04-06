@@ -1,0 +1,3 @@
+Contact: mailto:contact@laceupnetwork.com
+Preferred-Languages: en
+Policy: https://laceupnetwork.com/security
