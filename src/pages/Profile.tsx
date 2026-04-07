@@ -127,8 +127,6 @@ const Profile = () => {
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [authEmail, setAuthEmail] = useState<string>("");
   const [newAuthEmail, setNewAuthEmail] = useState<string>("");
   const [emailUpdateLoading, setEmailUpdateLoading] = useState(false);
   const [referralDialogOpen, setReferralDialogOpen] = useState(false);
@@ -213,13 +211,10 @@ const Profile = () => {
   };
 
   // Use real analytics
-  const { postsCount, connectionsCount, profileViewsCount, loading: analyticsLoading } = useUserAnalytics(currentUserId);
+  const { postsCount, connectionsCount, profileViewsCount, loading: analyticsLoading } = useUserAnalytics(user?.id ?? "");
 
   useEffect(() => {
-    fetchProfile();
-    fetchConnections();
-    fetchEndorsements();
-    fetchRoleChangeRequest();
+    Promise.all([fetchProfile(), fetchConnections(), fetchEndorsements(), fetchRoleChangeRequest()]);
   }, [user?.id]);
 
   useEffect(() => {
@@ -243,9 +238,6 @@ const Profile = () => {
 
   const fetchProfile = async () => {
     if (!user) return;
-
-    setCurrentUserId(user.id);
-    setAuthEmail(user.email || '');
 
     const { data, error } = await supabase
       .from("profiles")
@@ -366,7 +358,7 @@ const Profile = () => {
 
   const handleAuthEmailUpdate = async () => {
     const trimmed = newAuthEmail.trim();
-    if (!trimmed || trimmed.toLowerCase() === authEmail.toLowerCase()) {
+    if (!trimmed || trimmed.toLowerCase() === (user?.email ?? '').toLowerCase()) {
       toast({
         title: "No changes",
         description: "Enter a different email to update your login.",
@@ -607,13 +599,13 @@ const Profile = () => {
   };
 
   const uploadResume = async () => {
-    if (!selectedResume || !currentUserId) return;
+    if (!selectedResume || !user) return;
 
     setUploadingResume(true);
     try {
       const fileExt = selectedResume.name.split('.').pop();
       const fileName = `resume.${fileExt}`;
-      const filePath = `${currentUserId}/${fileName}`;
+      const filePath = `${user!.id}/${fileName}`;
 
       // Delete old resume if exists
       await supabase.storage.from('resumes').remove([filePath]);
@@ -630,7 +622,7 @@ const Profile = () => {
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ resume_url: data.publicUrl })
-        .eq('id', currentUserId);
+        .eq('id', user!.id);
 
       if (updateError) throw updateError;
 
@@ -652,16 +644,16 @@ const Profile = () => {
   };
 
   const deleteResume = async () => {
-    if (!currentUserId || !profileData.resumeUrl) return;
+    if (!user || !profileData.resumeUrl) return;
 
     try {
-      const filePath = `${currentUserId}/resume.pdf`;
+      const filePath = `${user!.id}/resume.pdf`;
       await supabase.storage.from('resumes').remove([filePath]);
 
       const { error } = await supabase
         .from('profiles')
         .update({ resume_url: null })
-        .eq('id', currentUserId);
+        .eq('id', user!.id);
 
       if (error) throw error;
 
@@ -1193,7 +1185,7 @@ const Profile = () => {
                         <Input
                           id="authEmail"
                           type="email"
-                          value={authEmail}
+                          value={user?.email ?? ""}
                           readOnly
                           className="bg-muted/50"
                         />
@@ -1760,7 +1752,7 @@ const Profile = () => {
           </Card>
 
           {/* Security Settings */}
-          <SecuritySettings userId={currentUserId} userEmail={authEmail} />
+          <SecuritySettings userId={user?.id ?? ""} userEmail={user?.email ?? ""} />
 
           <Card className="p-6">
             <h3 className="font-semibold mb-2">Profile Completion</h3>

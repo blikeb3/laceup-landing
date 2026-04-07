@@ -153,7 +153,6 @@ const Opportunities = () => {
   };
 
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
@@ -225,7 +224,7 @@ const Opportunities = () => {
       setResumeUrl(profile?.resume_url ?? null);
     };
     fetchResumeUrl();
-  }, []);
+  }, [user?.id]);
 
   const applyFilters = useCallback(() => {
     let filtered = [...opportunities];
@@ -261,16 +260,12 @@ const Opportunities = () => {
 
       if (!error && data) {
         const posterIds = [...new Set(data.map((opp: Record<string, unknown>) => opp.posted_by as string))];
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("id, first_name, last_name")
-          .in("id", posterIds);
+        const [{ data: profiles }, rolesMap, { data: userBadgesData }] = await Promise.all([
+          supabase.from("profiles").select("id, first_name, last_name").in("id", posterIds),
+          fetchMultipleUserRoles(posterIds),
+          supabase.from("user_badges").select("user_id, badge_id, badges(id, name, description, image_url, icon)").in("user_id", posterIds),
+        ]);
         const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
-        const rolesMap = await fetchMultipleUserRoles(posterIds);
-        const { data: userBadgesData } = await supabase
-          .from("user_badges")
-          .select("user_id, badge_id, badges(id, name, description, image_url, icon)")
-          .in("user_id", posterIds);
         const badgesMap = new Map<string, FlattenedUserBadge[]>();
         if (userBadgesData) {
           userBadgesData.forEach((ub: Record<string, unknown>) => {
@@ -344,10 +339,7 @@ const Opportunities = () => {
 
   useEffect(() => {
     const init = async () => {
-      setCurrentUserId(user?.id ?? null);
-      await fetchOpportunities();
-      await fetchMyApplications();
-      await fetchMyPostedOpportunities();
+      await Promise.all([fetchOpportunities(), fetchMyApplications(), fetchMyPostedOpportunities()]);
     };
     init();
   }, [user?.id]);
@@ -434,7 +426,7 @@ const Opportunities = () => {
   const handleDeleteOpportunity = async (opportunityId: string) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this opportunity?");
     if (!confirmDelete) return;
-    if (!currentUserId) {
+    if (!user) {
       toast({ title: "Error", description: "You must be logged in to delete opportunities.", variant: "destructive" });
       return;
     }
@@ -445,7 +437,6 @@ const Opportunities = () => {
     }
     toast({ title: "Deleted", description: "Opportunity removed." });
     fetchOpportunities();
-    fetchMyPostedOpportunities();
   };
 
   const handleEditOpportunity = (opportunity: Opportunity) => {
@@ -821,7 +812,7 @@ const Opportunities = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
+                          {canApplyToOpportunity && user?.id !== opportunity.posted_by && (
                             <Button
                               size="sm"
                               variant={hasApplied(opportunity.id) ? "outline" : "default"}
@@ -832,10 +823,10 @@ const Opportunities = () => {
                               {hasApplied(opportunity.id) ? "Applied" : "Apply"}
                             </Button>
                           )}
-                          {!canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
+                          {!canApplyToOpportunity && user?.id !== opportunity.posted_by && (
                             <p className="text-xs text-muted-foreground">Only athletes and admins can apply to opportunities.</p>
                           )}
-                          {currentUserId === opportunity.posted_by && (
+                          {user?.id === opportunity.posted_by && (
                             <div className="flex items-center gap-2">
                               <Dialog>
                                 <DialogTrigger asChild>
@@ -1017,7 +1008,7 @@ const Opportunities = () => {
                     )}
                   </div>
                   <div className="flex gap-2 pt-4 border-t border-border">
-                    {canApplyToOpportunity && currentUserId !== opportunity.posted_by && (
+                    {canApplyToOpportunity && user?.id !== opportunity.posted_by && (
                       <Button size="sm" variant={hasApplied(opportunity.id) ? "outline" : "default"} className={hasApplied(opportunity.id) ? "" : "bg-gold hover:bg-gold/90 text-navy"} disabled={hasApplied(opportunity.id)} onClick={(e) => { e.stopPropagation(); setApplyingTo(opportunity.id); }}>
                         {hasApplied(opportunity.id) ? "Applied" : "Apply"}
                       </Button>

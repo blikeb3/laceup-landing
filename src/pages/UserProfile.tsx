@@ -122,10 +122,9 @@ const UserProfile = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [connectionLoading, setConnectionLoading] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [mutualConnectionsCount, setMutualConnectionsCount] = useState(0);
   const [endorsements, setEndorsements] = useState<Endorsement[]>([]);
-  const [myEndorsement, setMyEndorsement] = useState<Endorsement | null>(null);
+  const myEndorsement = endorsements.find(e => e.endorser_id === user?.id) ?? null;
   const [endorsementDialogOpen, setEndorsementDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingEndorsement, setDeletingEndorsement] = useState(false);
@@ -187,8 +186,6 @@ const UserProfile = () => {
         return;
       }
 
-      setCurrentUserId(user.id);
-
       // Check if viewing own profile
       if (user.id === userId) {
         setIsOwnProfile(true);
@@ -242,37 +239,49 @@ const UserProfile = () => {
 
       setProfile({ ...(sanitizedProfile as Profile), job_experiences: sortedJobs, degrees: parsedDegrees });
 
-      // Fetch user role
-      const { baseRole, hasAdminRole } = await fetchUserRoles(userId);
+      // Fetch user role, track profile view, and check connection status in parallel
+      const [
+        { baseRole, hasAdminRole },
+        { data: sentRequest },
+        { data: receivedRequest },
+        { data: connectionData },
+        { data: myConnections },
+        { data: theirConnections },
+      ] = await Promise.all([
+        fetchUserRoles(userId),
+        supabase
+          .from("connection_requests")
+          .select("id, status")
+          .eq("requester_id", user.id)
+          .eq("receiver_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("connection_requests")
+          .select("id, status")
+          .eq("requester_id", userId)
+          .eq("receiver_id", user.id)
+          .maybeSingle(),
+        supabase
+          .from("connections")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("connected_user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("connections")
+          .select("connected_user_id")
+          .eq("user_id", user.id),
+        supabase
+          .from("connections")
+          .select("connected_user_id")
+          .eq("user_id", userId),
+      ]);
+
+      // Fire-and-forget profile view tracking (no await needed for UI)
+      trackProfileView(userId, user.id);
 
       setUserIsAdmin(hasAdminRole);
       setUserRole(baseRole);
-
-      // Track profile view
-      await trackProfileView(userId, user.id);
-
-      // Check connection status (connected, pending sent, pending received, or none)
-      const { data: sentRequest } = await supabase
-        .from("connection_requests")
-        .select("id, status")
-        .eq("requester_id", user.id)
-        .eq("receiver_id", userId)
-        .maybeSingle();
-
-      const { data: receivedRequest } = await supabase
-        .from("connection_requests")
-        .select("id, status")
-        .eq("requester_id", userId)
-        .eq("receiver_id", user.id)
-        .maybeSingle();
-
-      // Check if already connected
-      const { data: connectionData } = await supabase
-        .from("connections")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("connected_user_id", userId)
-        .maybeSingle();
 
       // Determine connection state
       setIsConnected(!!connectionData);
@@ -286,17 +295,6 @@ const UserProfile = () => {
         setPendingRequestStatus("none");
         setPendingRequestId(null);
       }
-
-      // Calculate mutual connections
-      const { data: myConnections } = await supabase
-        .from("connections")
-        .select("connected_user_id")
-        .eq("user_id", user.id);
-
-      const { data: theirConnections } = await supabase
-        .from("connections")
-        .select("connected_user_id")
-        .eq("user_id", userId);
 
       if (myConnections && theirConnections) {
         const myConnectionIds = new Set(myConnections.map(c => c.connected_user_id));
@@ -332,42 +330,53 @@ const UserProfile = () => {
         }
       }
 
-      // Fetch user badges
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .eq('user_id', userId);
+      // Fetch badges, posts, and comments in parallel
+      const [
+        { data: badgesData },
+        { data: postsData, error: postsError },
+        { data: commentsData },
+      ] = await Promise.all([
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .eq('user_id', userId),
+        supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles!posts_user_id_fkey(first_name, last_name, avatar_url),
+            post_likes(id, user_id),
+            post_comments(id, user_id, content, created_at, profiles!post_comments_user_id_fkey(first_name, last_name, avatar_url)),
+            post_bookmarks(id, user_id),
+            post_shares(id),
+            post_media(id, media_url, media_type, display_order)
+          `)
+          .eq('user_id', userId)
+          .eq('is_published', true)
+          .order('published_at', { ascending: false }),
+        supabase
+          .from("post_comments")
+          .select("id, post_id, content, created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(20),
+      ]);
 
-      setUserBadges(badgesData || []);
-
-      // Fetch user's published posts
-      const { data: postsData, error: postsError } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles!posts_user_id_fkey(first_name, last_name, avatar_url),
-          post_likes(id, user_id),
-          post_comments(id, user_id, content, created_at, profiles!post_comments_user_id_fkey(first_name, last_name, avatar_url)),
-          post_bookmarks(id, user_id),
-          post_shares(id),
-          post_media(id, media_url, media_type, display_order)
-        `)
-        .eq('user_id', userId)
-        .eq('is_published', true)
-        .order('published_at', { ascending: false });
+      const fetchedBadges = badgesData || [];
+      setUserBadges(fetchedBadges);
 
       if (!postsError && postsData) {
-        // Fetch user roles and badges for posts
+        // Fetch user roles for posts
         const postIds = postsData.map(p => p.user_id);
         const roleMap = await fetchMultipleUserRoles(postIds);
-        
+
         const enrichedPosts = postsData.map((post: any) => {
           const userRoles = roleMap.get(post.user_id) || { baseRole: null, hasAdminRole: false };
           return {
             ...post,
             user_role: userRoles.baseRole,
             user_is_admin: userRoles.hasAdminRole,
-            user_badges: userBadges.filter(b => b.user_id === post.user_id),
+            user_badges: fetchedBadges.filter(b => b.user_id === post.user_id),
           };
         });
 
@@ -377,14 +386,6 @@ const UserProfile = () => {
         setUserPosts(allPosts.slice(0, POSTS_PER_PAGE));
         setDisplayedPostsCount(Math.min(POSTS_PER_PAGE, allPosts.length));
       }
-
-      // Fetch comments authored by this user (for Activity section)
-      const { data: commentsData } = await supabase
-        .from("post_comments")
-        .select("id, post_id, content, created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(20);
 
       setUserComments((commentsData as UserActivityComment[]) || []);
     } catch (error) {
@@ -410,12 +411,6 @@ const UserProfile = () => {
       if (error) throw error;
 
       setEndorsements((data as Endorsement[]) || []);
-
-      // Check if current user has endorsed this profile
-      if (user) {
-        const myEndorsementData = data?.find(e => e.endorser_id === user.id);
-        setMyEndorsement(myEndorsementData || null);
-      }
     } catch (error) {
       console.error("Error fetching endorsements:", error);
     }
@@ -453,7 +448,6 @@ const UserProfile = () => {
         description: "Your endorsement has been removed.",
       });
 
-      setMyEndorsement(null);
       await fetchEndorsements();
       setDeleteDialogOpen(false);
     } catch (error) {
@@ -469,7 +463,7 @@ const UserProfile = () => {
   };
 
   const handleConnect = async () => {
-    if (!userId || !currentUserId) return;
+    if (!userId || !user) return;
 
     try {
       setConnectionLoading(true);
@@ -496,7 +490,7 @@ const UserProfile = () => {
         const { data: existingRequest } = await supabase
           .from("connection_requests")
           .select("id")
-          .eq("requester_id", currentUserId)
+          .eq("requester_id", user.id)
           .eq("receiver_id", userId)
           .eq("status", "pending")
           .single();
@@ -512,7 +506,7 @@ const UserProfile = () => {
         const { error: requestError } = await supabase
           .from("connection_requests")
           .insert({
-            requester_id: currentUserId,
+            requester_id: user.id,
             receiver_id: userId,
             status: "pending",
           });
@@ -520,7 +514,7 @@ const UserProfile = () => {
         if (requestError) throw requestError;
 
         setPendingRequestStatus("sent");
-        
+
         toast({
           title: "Request Sent",
           description: `Your connection request has been sent to ${getDisplayName(profile?.first_name, profile?.last_name, "this user")}.`,
@@ -530,7 +524,7 @@ const UserProfile = () => {
         const { data: currentUserProfile } = await supabase
           .from('profiles')
           .select('first_name, last_name')
-          .eq('id', currentUserId)
+          .eq('id', user.id)
           .single();
 
         if (currentUserProfile) {
@@ -539,7 +533,7 @@ const UserProfile = () => {
             currentUserProfile.last_name
           );
 
-          await notifyConnectionRequest(userId, currentUserName, currentUserId);
+          await notifyConnectionRequest(userId, currentUserName, user.id);
         }
       }
     } catch (error) {
@@ -555,7 +549,7 @@ const UserProfile = () => {
   };
 
   const handleAcceptRequest = async () => {
-    if (!userId || !currentUserId || !pendingRequestId) return;
+    if (!userId || !user || !pendingRequestId) return;
 
     try {
       setConnectionLoading(true);
@@ -572,7 +566,7 @@ const UserProfile = () => {
       const { error: conn1Error } = await supabase
         .from("connections")
         .insert({
-          user_id: currentUserId,
+          user_id: user.id,
           connected_user_id: userId,
         })
         .select()
@@ -586,7 +580,7 @@ const UserProfile = () => {
         .from("connections")
         .insert({
           user_id: userId,
-          connected_user_id: currentUserId,
+          connected_user_id: user.id,
         })
         .select()
         .single();
@@ -608,7 +602,7 @@ const UserProfile = () => {
       const { data: currentUserProfile } = await supabase
         .from('profiles')
         .select('first_name, last_name')
-        .eq('id', currentUserId)
+        .eq('id', user.id)
         .single();
 
       if (currentUserProfile) {
@@ -617,7 +611,7 @@ const UserProfile = () => {
           currentUserProfile.last_name
         );
 
-        await notifyConnectionAccepted(userId, currentUserName, currentUserId);
+        await notifyConnectionAccepted(userId, currentUserName, user.id);
       }
     } catch (error) {
       console.error("Error accepting request:", error);
@@ -696,23 +690,23 @@ const UserProfile = () => {
   };
 
   const handleDisconnect = async () => {
-    if (!userId || !currentUserId) return;
+    if (!userId || !user) return;
 
     try {
       setConnectionLoading(true);
-      
+
       // Delete both directions of the connection
       const { error: error1 } = await supabase
         .from("connections")
         .delete()
-        .eq("user_id", currentUserId)
+        .eq("user_id", user.id)
         .eq("connected_user_id", userId);
 
       const { error: error2 } = await supabase
         .from("connections")
         .delete()
         .eq("user_id", userId)
-        .eq("connected_user_id", currentUserId);
+        .eq("connected_user_id", user.id);
 
       if (error1 || error2) throw error1 || error2;
 
@@ -1160,7 +1154,7 @@ const UserProfile = () => {
                     key={post.id}
                     post={post}
                     onUpdate={() => {}}
-                    currentUserId={currentUserId}
+                    currentUserId={user?.id ?? ""}
                   />
                 ))}
               </div>

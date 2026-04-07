@@ -185,36 +185,23 @@ const Admin = () => {
   };
 
   const fetchDashboardData = useCallback(async () => {
-    const { data: allProfilesData } = await supabase
-      .from("profiles")
-      .select("*");
+    const [
+      { data: allProfilesData },
+      { data: messages },
+      { data: connections },
+      { data: referralsSentData },
+      { data: referralsAcceptedData },
+      { data: newFeedback },
+    ] = await Promise.all([
+      supabase.from("profiles").select("*"),
+      supabase.from("messages").select("id", { count: "exact" }),
+      supabase.from("connections").select("id", { count: "exact" }),
+      supabase.from("referrals").select("id", { count: "exact" }),
+      supabase.from("referrals").select("id", { count: "exact" }).eq("status", "accepted"),
+      supabase.from("feedback").select("id", { count: "exact" }).eq("status", "NEW"),
+    ]);
 
     setAllProfiles(allProfilesData || []);
-
-    const { data: messages } = await supabase
-      .from("messages")
-      .select("id", { count: "exact" });
-
-    const { data: connections } = await supabase
-      .from("connections")
-      .select("id", { count: "exact" });
-
-    // Fetch referrals data
-    const { data: referralsSentData } = await supabase
-      .from("referrals")
-      .select("id", { count: "exact" });
-
-    const { data: referralsAcceptedData } = await supabase
-      .from("referrals")
-      .select("id", { count: "exact" })
-      .eq("status", "accepted");
-
-    // Fetch new feedback count
-    const { data: newFeedback } = await supabase
-      .from("feedback")
-      .select("id", { count: "exact" })
-      .eq("status", "NEW");
-
     setNewFeedbackCount(newFeedback?.length || 0);
 
     setAnalytics({
@@ -228,17 +215,15 @@ const Admin = () => {
 
   const fetchResources = useCallback(async () => {
     try {
-      const { data: resourcesData, error: resourcesError } = await supabase
-        .from("resources")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const [
+        { data: resourcesData, error: resourcesError },
+        { data: clicksData },
+      ] = await Promise.all([
+        supabase.from("resources").select("*").order("created_at", { ascending: false }),
+        supabase.from("resource_clicks").select("resource_id"),
+      ]);
 
       if (resourcesError) throw resourcesError;
-
-      // Fetch click counts for each resource
-      const { data: clicksData } = await supabase
-        .from("resource_clicks")
-        .select("resource_id");
 
       const clickCounts = clicksData?.reduce((acc, click) => {
         acc[click.resource_id] = (acc[click.resource_id] || 0) + 1;

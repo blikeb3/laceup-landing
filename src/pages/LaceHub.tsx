@@ -31,24 +31,22 @@ const LaceHub = () => {
   // Infinite scroll state
   const [hasResourcesMore, setHasResourcesMore] = useState(true);
   const [loadingResourcesMore, setLoadingResourcesMore] = useState(false);
-  const loadingResourcesRef = useRef(false);
   const resourcesLoadMoreRef = useRef<HTMLDivElement>(null);
   const PAGE_SIZE = 12;
   
   const { toast } = useToast();
 
-  const fetchResources = useCallback(async (reset: boolean = true) => {
-    if (!reset && loadingResourcesRef.current) return;
-    
+  const fetchResources = useCallback(async (reset: boolean = true, currentLength: number = 0) => {
+    if (!reset && loadingResourcesMore) return;
+
     try {
       if (!reset) {
-        loadingResourcesRef.current = true;
         setLoadingResourcesMore(true);
       }
-      
-      const from = reset ? 0 : resources.length;
+
+      const from = reset ? 0 : currentLength;
       const to = from + PAGE_SIZE - 1;
-      
+
       const { data, error } = await supabase
         .from("resources")
         .select("*")
@@ -57,10 +55,14 @@ const LaceHub = () => {
 
       if (error) throw error;
 
-      // Fetch click counts for each resource
-      const { data: clicksData } = await supabase
-        .from("resource_clicks")
-        .select("resource_id");
+      // Fetch click counts only for the fetched resources
+      const resourceIds = (data || []).map(r => r.id);
+      const [{ data: clicksData }] = await Promise.all([
+        supabase
+          .from("resource_clicks")
+          .select("resource_id")
+          .in("resource_id", resourceIds),
+      ]);
 
       const clickCounts = clicksData?.reduce((acc, click) => {
         acc[click.resource_id] = (acc[click.resource_id] || 0) + 1;
@@ -103,11 +105,10 @@ const LaceHub = () => {
     } finally {
       setLoading(false);
       if (!reset) {
-        loadingResourcesRef.current = false;
         setLoadingResourcesMore(false);
       }
     }
-  }, [toast, resources.length]);
+  }, [toast, loadingResourcesMore]);
 
   useEffect(() => {
     fetchResources();
@@ -188,7 +189,7 @@ const LaceHub = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasResourcesMore && !loadingResourcesMore) {
-          fetchResources(false);
+          fetchResources(false, resources.length);
         }
       },
       { threshold: 0.1 }
@@ -199,7 +200,7 @@ const LaceHub = () => {
     }
 
     return () => observer.disconnect();
-  }, [hasResourcesMore, loadingResourcesMore, fetchResources]);
+  }, [hasResourcesMore, loadingResourcesMore, fetchResources, resources.length]);
 
   if (loading) {
     return (

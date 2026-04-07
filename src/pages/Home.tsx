@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { fetchMultipleUserRoles } from "@/lib/roleUtils";
+import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { Post, RawPost, PostInsert, UserBadge, PostComment } from "@/types/posts";
 import { notifyConnectionRequest, notifyConnectionAccepted, notifyFollowersAboutPost } from "@/lib/notificationHelpers";
 
@@ -109,19 +109,20 @@ const Home = () => {
 
   const fetchCurrentUser = useCallback(async () => {
     if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+      const [{ data: profile }, { data: badgesData }] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single(),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .eq('user_id', user.id),
+      ]);
       setCurrentUser(profile as Profile);
 
       // Fetch user badges
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .eq('user_id', user.id);
-
       setCurrentUserBadges(badgesData || []);
 
       return profile as Profile;
@@ -204,13 +205,14 @@ const Home = () => {
       // Fetch user roles and badges for all post authors
       const userIds = [...new Set((data || []).map((post: RawPost) => post.user_id))];
 
-      // Fetch roles for all users at once
-      const rolesMap = await fetchMultipleUserRoles(userIds);
-
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .in('user_id', userIds);
+      // Fetch roles and badges for all users in parallel
+      const [rolesMap, { data: badgesData }] = await Promise.all([
+        fetchMultipleUserRoles(userIds),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .in('user_id', userIds),
+      ]);
 
       const badgesMap = new Map();
       badgesData?.forEach(badge => {
@@ -342,15 +344,15 @@ const Home = () => {
       scored.sort((a, b) => b.score - a.score);
       const topSuggestions = scored.slice(0, 5);
 
-      // Fetch roles for suggested profiles
+      // Fetch roles and badges for suggested profiles in parallel
       const suggestionIds = topSuggestions.map(s => s.id);
-      const rolesMap = await fetchMultipleUserRoles(suggestionIds);
-
-      // Fetch badges for suggested profiles
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .in('user_id', suggestionIds);
+      const [rolesMap, { data: badgesData }] = await Promise.all([
+        fetchMultipleUserRoles(suggestionIds),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .in('user_id', suggestionIds),
+      ]);
 
       const badgesMap = new Map();
       badgesData?.forEach(badge => {
@@ -520,22 +522,24 @@ const Home = () => {
         return null;
       }
 
-      // Fetch user role and badges for the post author
-      const { baseRole, hasAdminRole } = await fetchUserRoles(data.user_id);
+      // Fetch user role and badges for the post author in parallel
+      const [{ baseRole, hasAdminRole }, { data: badgesData }] = await Promise.all([
+        fetchUserRoles(data.user_id),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .eq('user_id', data.user_id),
+      ]);
 
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .eq('user_id', data.user_id);
-
-      // Fetch roles and badges for comment authors
+      // Fetch roles and badges for comment authors in parallel
       const commentUserIds = [...new Set((data.post_comments || []).map((comment: { user_id: string }) => comment.user_id))];
-      const commentRolesMap = await fetchMultipleUserRoles(commentUserIds);
-
-      const { data: commentBadgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .in('user_id', commentUserIds);
+      const [commentRolesMap, { data: commentBadgesData }] = await Promise.all([
+        fetchMultipleUserRoles(commentUserIds),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .in('user_id', commentUserIds),
+      ]);
 
       const commentBadgesMap = new Map();
       commentBadgesData?.forEach(badge => {
@@ -711,17 +715,16 @@ const Home = () => {
     } else {
       const bookmarkedPosts = data?.map((item: { posts: RawPost }) => item.posts) || [];
 
-      // Fetch user roles and badges for bookmarked posts
+      // Fetch user roles and badges for bookmarked posts in parallel
       const userIds = [...new Set(bookmarkedPosts.map((post: RawPost) => post.user_id))];
 
-      // Fetch roles for all users at once
-      const rolesMap = await fetchMultipleUserRoles(userIds);
-
-      // Fetch badges for all users
-      const { data: badgesData } = await supabase
-        .from('user_badges')
-        .select('*, badges(*)')
-        .in('user_id', userIds);
+      const [rolesMap, { data: badgesData }] = await Promise.all([
+        fetchMultipleUserRoles(userIds),
+        supabase
+          .from('user_badges')
+          .select('*, badges(*)')
+          .in('user_id', userIds),
+      ]);
 
       const badgesMap = new Map();
       badgesData?.forEach(badge => {

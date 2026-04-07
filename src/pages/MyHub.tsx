@@ -66,6 +66,7 @@ const MyHub = () => {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
   const [suggestions, setSuggestions] = useState<Profile[]>([]);
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [connections, setConnections] = useState<Connection[]>([]);
@@ -432,14 +433,16 @@ const MyHub = () => {
 
           if (profilesError) throw profilesError;
 
-          // Fetch roles and badges for ALL connections
+          // Fetch roles and badges for ALL connections in parallel
           const connectionIds = (connectionProfiles || []).map(c => c.id);
-          const rolesMap = await fetchMultipleUserRoles(connectionIds);
-
-          const { data: badgesData } = await supabase
-            .from('user_badges')
-            .select('*, badges(*)')
-            .in('user_id', connectionIds);
+          const [rolesMap, badgesResult] = await Promise.all([
+            fetchMultipleUserRoles(connectionIds),
+            supabase
+              .from('user_badges')
+              .select('*, badges(*)')
+              .in('user_id', connectionIds),
+          ]);
+          const { data: badgesData } = badgesResult;
 
           const badgesMap = new Map();
           badgesData?.forEach(badge => {
@@ -639,6 +642,7 @@ const MyHub = () => {
         .single();
 
       if (currentProfile) {
+        setCurrentProfile(currentProfile);
         await Promise.all([
           fetchSuggestions(user.id, currentProfile, true, suggestionsSearchQuery, roleFilter),
           fetchConnections(user.id, true, searchQuery, roleFilter),
@@ -774,19 +778,9 @@ const MyHub = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasSuggestionsMore && !loadingSuggestionsMore) {
-          (async () => {
-            if (!user) return;
-
-            const { data: currentProfile } = await supabase
-              .from("profiles")
-              .select("*")
-              .eq("id", user.id)
-              .single();
-
-            if (currentProfile) {
-              await fetchSuggestions(user.id, currentProfile, false, suggestionsSearchQuery, roleFilter);
-            }
-          })();
+          if (user && currentProfile) {
+            fetchSuggestions(user.id, currentProfile, false, suggestionsSearchQuery, roleFilter);
+          }
         }
       },
       { threshold: 0, rootMargin: "400px 0px" }
