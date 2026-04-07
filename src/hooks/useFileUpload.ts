@@ -57,7 +57,7 @@ export const useFileUpload = () => {
         }
     };
 
-    const uploadFile = async (userId: string): Promise<FileData | null> => {
+    const uploadFile = async (userId: string, bucket: string = 'message-files'): Promise<FileData | null> => {
         if (!selectedFile) return null;
 
         setUploading(true);
@@ -67,14 +67,14 @@ export const useFileUpload = () => {
             const filePath = `${userId}/${fileName}`;
 
             const { error: uploadError } = await supabase.storage
-                .from('message-files')
+                .from(bucket)
                 .upload(filePath, selectedFile);
 
             if (uploadError) {
                 throw uploadError;
             }
 
-            const { data } = supabase.storage.from('message-files').getPublicUrl(filePath);
+            const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
             return {
                 url: data.publicUrl,
                 name: selectedFile.name,

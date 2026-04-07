@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import DOMPurify from "dompurify";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateLong } from "@/lib/dateFormat";
@@ -94,8 +95,7 @@ type ResourceFormData = z.infer<typeof resourceSchema>;
 
 const Admin = () => {
   const { user } = useAuth();
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const { hasAdminRole, loading: roleLoading } = useCurrentUserRole();
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
   const [newFeedbackCount, setNewFeedbackCount] = useState(0);
   const [resources, setResources] = useState<Resource[]>([]);
@@ -285,45 +285,22 @@ const Admin = () => {
     }
   }, [toast]);
 
-  const checkAdminAccess = useCallback(async () => {
-    try {
-      if (!user) {
-        navigate("/home");
-        return;
-      }
-
-      const { data: roleData, error: roleError } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (roleError || !roleData) {
-        toast({
-          title: "Access Denied",
-          description: "You don't have permission to access this page.",
-          variant: "destructive",
-        });
-        navigate("/home");
-        return;
-      }
-
-      setIsAdmin(true);
-      fetchDashboardData();
-      fetchResources();
-      fetchRoleChangeRequests();
-    } catch (error) {
-      console.error("Error checking admin access:", error);
-      navigate("/home");
-    } finally {
-      setLoading(false);
-    }
-  }, [navigate, toast, user?.id, fetchResources, fetchDashboardData, fetchRoleChangeRequests]);
-
   useEffect(() => {
-    checkAdminAccess();
-  }, [checkAdminAccess]);
+    if (roleLoading) return;
+    if (!user) { navigate("/home"); return; }
+    if (!hasAdminRole) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to access this page.",
+        variant: "destructive",
+      });
+      navigate("/home");
+      return;
+    }
+    fetchDashboardData();
+    fetchResources();
+    fetchRoleChangeRequests();
+  }, [roleLoading, hasAdminRole, user?.id, navigate, toast, fetchDashboardData, fetchResources, fetchRoleChangeRequests]);
 
   const validateForm = (data: ResourceFormData, file: File | null, type: 'url' | 'file'): boolean => {
     try {
@@ -685,7 +662,7 @@ const Admin = () => {
     fetchDashboardData();
   };
 
-  if (loading) {
+  if (roleLoading) {
     return (
       <div className="container mx-auto p-8 flex items-center justify-center min-h-screen">
         <p className="text-muted-foreground">Loading...</p>
@@ -693,7 +670,7 @@ const Admin = () => {
     );
   }
 
-  if (!isAdmin) {
+  if (!hasAdminRole) {
     return null;
   }
 

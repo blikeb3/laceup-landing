@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { Link, useSearchParams } from "react-router-dom";
 import { PostCard } from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
+import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { Post, RawPost, PostInsert, UserBadge, PostComment } from "@/types/posts";
 import { notifyConnectionRequest, notifyConnectionAccepted, notifyFollowersAboutPost } from "@/lib/notificationHelpers";
 
@@ -60,6 +61,7 @@ interface Profile {
 
 const Home = () => {
   const { user } = useAuth();
+  const { baseRole: currentUserRole, hasAdminRole: currentUserIsAdmin } = useCurrentUserRole();
   const [posts, setPosts] = useState<Post[]>([]);
   const [postContent, setPostContent] = useState("");
   const [showComposer, setShowComposer] = useState(false);
@@ -69,8 +71,6 @@ const Home = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   const [currentUser, setCurrentUser] = useState<Profile | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
-  const [currentUserIsAdmin, setCurrentUserIsAdmin] = useState(false);
   const [currentUserBadges, setCurrentUserBadges] = useState<UserBadge[]>([]);
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -115,12 +115,6 @@ const Home = () => {
         .eq('id', user.id)
         .single();
       setCurrentUser(profile as Profile);
-
-      // Fetch user roles (can have multiple)
-      const { baseRole, hasAdminRole } = await fetchUserRoles(user.id);
-
-      setCurrentUserIsAdmin(hasAdminRole);
-      setCurrentUserRole(baseRole);
 
       // Fetch user badges
       const { data: badgesData } = await supabase

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,6 @@ import { getFullName, getInitials } from "@/lib/nameUtils";
 import { formatPhoneNumber } from "@/lib/phoneMask";
 import { formatDistanceToNow } from "date-fns";
 import { formatDateLong } from "@/lib/dateFormat";
-import { fetchUserRoles } from "@/lib/roleUtils";
 
 interface JobExperience {
   id?: string;
@@ -123,12 +123,11 @@ interface ActivityItem {
 
 const Profile = () => {
   const { user } = useAuth();
+  const { baseRole: userRole, hasAdminRole: isAdmin } = useCurrentUserRole();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string>("");
-  const [userRole, setUserRole] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
   const [authEmail, setAuthEmail] = useState<string>("");
   const [newAuthEmail, setNewAuthEmail] = useState<string>("");
   const [emailUpdateLoading, setEmailUpdateLoading] = useState(false);
@@ -247,12 +246,6 @@ const Profile = () => {
 
     setCurrentUserId(user.id);
     setAuthEmail(user.email || '');
-
-    // Fetch user roles (can have multiple)
-    const { baseRole, hasAdminRole } = await fetchUserRoles(user.id);
-
-    setUserRole(baseRole);
-    setIsAdmin(hasAdminRole);
 
     const { data, error } = await supabase
       .from("profiles")

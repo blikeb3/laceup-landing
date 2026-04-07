@@ -1,76 +1,58 @@
 import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { user, loading: authLoading } = useAuth();
   const [isRejected, setIsRejected] = useState(false);
+  const [checkingRejection, setCheckingRejection] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+
     let mounted = true;
 
-    const checkRejectedStatus = async (userId: string) => {
+    if (!user) {
+      setIsRejected(false);
+      setCheckingRejection(false);
+      return;
+    }
+
+    setCheckingRejection(true);
+
+    const checkRejectedStatus = async () => {
       try {
         const { data: profile } = await supabase
           .from("profiles")
           .select("approval_status")
-          .eq("id", userId)
+          .eq("id", user.id)
           .single();
 
         if (mounted) {
           // Only block if explicitly rejected
           setIsRejected(profile?.approval_status === "rejected");
-          setLoading(false);
+          setCheckingRejection(false);
         }
       } catch (error) {
         console.error("Error checking account status:", error);
         if (mounted) {
           setIsRejected(false);
-          setLoading(false);
+          setCheckingRejection(false);
         }
       }
     };
 
-    // Check for existing session first
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        setSession(session);
-        if (session?.user) {
-          checkRejectedStatus(session.user.id);
-        } else {
-          setLoading(false);
-        }
-      }
-    });
+    checkRejectedStatus();
 
-    // Set up auth state listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) {
-          setSession(session);
-          if (session?.user) {
-            checkRejectedStatus(session.user.id);
-          } else {
-            setIsRejected(false);
-            setLoading(false);
-          }
-        }
-      }
-    );
+    return () => { mounted = false; };
+  }, [user?.id, authLoading]);
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  if (loading) {
+  if (authLoading || checkingRejection) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold"></div>
@@ -78,7 +60,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     );
   }
 
-  if (!session) {
+  if (!user) {
     return <Navigate to="/auth" replace />;
   }
 

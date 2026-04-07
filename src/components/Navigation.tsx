@@ -4,13 +4,16 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { MessageSquare, Shield, LogOut, Briefcase, Users, Menu, Bell, House, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserSearchBar } from "@/components/UserSearchBar";
 import { useNotifications } from "@/hooks/useNotifications";
 
 export const Navigation = () => {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
+  const { hasAdminRole: isAdmin } = useCurrentUserRole();
   const [userProfile, setUserProfile] = useState<{ first_name?: string | null; last_name?: string | null; avatar_url?: string | null } | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
@@ -21,47 +24,24 @@ export const Navigation = () => {
   useEffect(() => {
     let mounted = true;
 
-    const loadUserData = async (userId: string) => {
-      if (!mounted) return;
+    if (user) {
+      const loadUserData = async () => {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("first_name, last_name, avatar_url")
+          .eq("id", user.id)
+          .single();
 
-      const [roleData, profileData] = await Promise.all([
-        supabase.from("user_roles").select("role").eq("user_id", userId).limit(1),
-        supabase.from("profiles").select("first_name, last_name, avatar_url").eq("id", userId).single()
-      ]);
+        if (mounted) setUserProfile(profile);
+      };
 
-      if (mounted) {
-        const role = roleData.data?.[0]?.role ?? null;
-        setIsAdmin(role === "admin");
-        setUserProfile(profileData.data);
-      }
-    };
+      loadUserData();
+    } else {
+      setUserProfile(null);
+    }
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (mounted) {
-        if (session?.user) {
-          loadUserData(session.user.id);
-        }
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        if (mounted) {
-          if (session?.user) {
-            loadUserData(session.user.id);
-          } else {
-            setIsAdmin(false);
-            setUserProfile(null);
-          }
-        }
-      }
-    );
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []);
+    return () => { mounted = false; };
+  }, [user?.id]);
 
   // Close mobile menu on route change
   useEffect(() => {

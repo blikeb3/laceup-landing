@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +16,7 @@ import { useFileUpload } from "@/hooks/useFileUpload";
 import { Briefcase, MapPin, Clock, DollarSign, Calendar, Plus, Filter, Building2, Users, GraduationCap, Heart, Send, Edit, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { fetchUserRoles, fetchMultipleUserRoles } from "@/lib/roleUtils";
+import { fetchMultipleUserRoles } from "@/lib/roleUtils";
 import { downloadResume } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { FlattenedUserBadge } from "@/types/posts";
@@ -97,6 +98,7 @@ const matchesLocationFilter = (opp: Opportunity, rawFilter: string) => {
 
 const Opportunities = () => {
   const { user } = useAuth();
+  const { baseRole: currentUserRole } = useCurrentUserRole();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
@@ -152,7 +154,6 @@ const Opportunities = () => {
 
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<string>("all");
   const [locationFilter, setLocationFilter] = useState<string>("");
   const [levelFilter, setLevelFilter] = useState<string>("all");
@@ -341,16 +342,9 @@ const Opportunities = () => {
     if (!error && data) setMyPostedOpportunities(data);
   };
 
-  const fetchCurrentUserRole = async () => {
-    if (!user) { setCurrentUserRole(null); return; }
-    const { baseRole } = await fetchUserRoles(user.id);
-    setCurrentUserRole(baseRole);
-  };
-
   useEffect(() => {
     const init = async () => {
       setCurrentUserId(user?.id ?? null);
-      await fetchCurrentUserRole();
       await fetchOpportunities();
       await fetchMyApplications();
       await fetchMyPostedOpportunities();
