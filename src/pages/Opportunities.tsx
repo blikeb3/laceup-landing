@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -95,6 +96,7 @@ const matchesLocationFilter = (opp: Opportunity, rawFilter: string) => {
 };
 
 const Opportunities = () => {
+  const { user } = useAuth();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
@@ -213,7 +215,6 @@ const Opportunities = () => {
 
   useEffect(() => {
     const fetchResumeUrl = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       const { data: profile } = await supabase
         .from("profiles")
@@ -313,7 +314,6 @@ const Opportunities = () => {
   }, [opportunities.length]);
 
   const fetchMyApplications = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data, error } = await supabase
       .from("opportunity_applications")
@@ -331,7 +331,6 @@ const Opportunities = () => {
   };
 
   const fetchMyPostedOpportunities = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const { data, error } = await supabase
       .from("opportunities")
@@ -343,7 +342,6 @@ const Opportunities = () => {
   };
 
   const fetchCurrentUserRole = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setCurrentUserRole(null); return; }
     const { baseRole } = await fetchUserRoles(user.id);
     setCurrentUserRole(baseRole);
@@ -351,7 +349,6 @@ const Opportunities = () => {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       setCurrentUserId(user?.id ?? null);
       await fetchCurrentUserRole();
       await fetchOpportunities();
@@ -359,11 +356,10 @@ const Opportunities = () => {
       await fetchMyPostedOpportunities();
     };
     init();
-  }, []);
+  }, [user?.id]);
 
   const handlePostOpportunity = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     if (!canPostOpportunity) {
@@ -479,7 +475,6 @@ const Opportunities = () => {
   };
 
   const handleApply = async (opportunityId: string) => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast({ title: "Error", description: "You must be logged in to apply.", variant: "destructive" });
       return;

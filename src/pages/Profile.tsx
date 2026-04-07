@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,6 +122,7 @@ interface ActivityItem {
 }
 
 const Profile = () => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -219,7 +221,7 @@ const Profile = () => {
     fetchConnections();
     fetchEndorsements();
     fetchRoleChangeRequest();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     // Check if URL hash is #referral and open dialog
@@ -241,7 +243,6 @@ const Profile = () => {
   }, [selectedResume]);
 
   const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     setCurrentUserId(user.id);
@@ -413,7 +414,6 @@ const Profile = () => {
   };
 
   const fetchConnections = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data: connections, error: connectionsError } = await supabase
@@ -435,7 +435,6 @@ const Profile = () => {
   };
 
   const fetchEndorsements = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     try {
@@ -457,7 +456,6 @@ const Profile = () => {
   };
 
   const fetchRoleChangeRequest = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     try {
@@ -507,7 +505,6 @@ const Profile = () => {
     setSubmittingRoleChange(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       if (roleChangeRequest) {
@@ -741,7 +738,6 @@ const Profile = () => {
     try {
       setUploading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       let avatarUrl = formData.avatarUrl;

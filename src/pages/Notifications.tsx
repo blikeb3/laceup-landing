@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { Check, CheckCheck, Bell, Heart, MessageCircle, Users, Share2, Zap, Briefcase, Mail, Trash2, ArrowRight } from "lucide-react";
 import { useNotifications } from "@/hooks/useNotifications";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ interface JobRecommendation {
 
 const Notifications = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { notifications, unreadCount, loading, markAsRead, markAllAsRead, deleteNotification } = useNotifications();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
@@ -46,7 +48,6 @@ const Notifications = () => {
   const [jobRecommendations, setJobRecommendations] = useState<JobRecommendation[]>([]);
 
   const fetchJobRecommendations = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const [{ data: profile }, { data: opportunities }] = await Promise.all([
@@ -80,7 +81,7 @@ const Notifications = () => {
       .slice(0, 6);
 
     setJobRecommendations(ranked);
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchJobRecommendations();

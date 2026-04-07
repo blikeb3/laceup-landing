@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -59,6 +60,7 @@ interface Group {
 }
 
 const MyHub = () => {
+  const { user } = useAuth();
   const location = useLocation();
   type RoleFilter = "all" | "athlete" | "mentor" | "employer";
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
@@ -69,7 +71,7 @@ const MyHub = () => {
   const [connections, setConnections] = useState<Connection[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const currentUserId = user?.id ?? "";
   const [referralDialogOpen, setReferralDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [suggestionsSearchQuery, setSuggestionsSearchQuery] = useState<string>("");
@@ -117,7 +119,6 @@ const MyHub = () => {
   // Fetch pending connection requests on mount
   useEffect(() => {
     const fetchPendingRequests = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -142,7 +143,7 @@ const MyHub = () => {
     };
 
     fetchPendingRequests();
-  }, []);
+  }, [user?.id]);
 
   // Handle URL search parameter
   useEffect(() => {
@@ -628,10 +629,7 @@ const MyHub = () => {
 
   const loadHubData = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-
-      setCurrentUserId(user.id);
 
       // Fetch current user's profile for matching
       const { data: currentProfile } = await supabase
@@ -652,7 +650,7 @@ const MyHub = () => {
     } finally {
       setLoading(false);
     }
-  }, [fetchSuggestions, fetchConnections, fetchGroups, suggestionsSearchQuery, searchQuery, roleFilter]);
+  }, [fetchSuggestions, fetchConnections, fetchGroups, suggestionsSearchQuery, searchQuery, roleFilter, user]);
 
   useEffect(() => {
     loadHubData();
@@ -776,7 +774,7 @@ const MyHub = () => {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasSuggestionsMore && !loadingSuggestionsMore) {
-          supabase.auth.getUser().then(async ({ data: { user } }) => {
+          (async () => {
             if (!user) return;
 
             const { data: currentProfile } = await supabase
@@ -788,7 +786,7 @@ const MyHub = () => {
             if (currentProfile) {
               await fetchSuggestions(user.id, currentProfile, false, suggestionsSearchQuery, roleFilter);
             }
-          });
+          })();
         }
       },
       { threshold: 0, rootMargin: "400px 0px" }

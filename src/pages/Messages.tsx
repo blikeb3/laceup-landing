@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
 import { useConversations } from "@/hooks/useConversations";
 import { useMessages } from "@/hooks/useMessages";
@@ -23,8 +24,9 @@ import { ConversationParticipant } from "@/types/messages";
 import { getInitials } from "@/lib/nameUtils";
 
 const Messages = () => {
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? null;
   const [searchParams, setSearchParams] = useSearchParams();
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
   const [showConversationList, setShowConversationList] = useState(true);
   const [showNewConversation, setShowNewConversation] = useState(false);
@@ -144,17 +146,6 @@ const Messages = () => {
     clearFileSelection,
     openFilePicker
   } = useFileUpload();
-
-  // Get current user
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-      }
-    };
-    getCurrentUser();
-  }, []);
 
   // Handle userId from URL params or auto-select first conversation
   useEffect(() => {

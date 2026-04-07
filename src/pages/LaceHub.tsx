@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ interface Resource {
 }
 
 const LaceHub = () => {
+  const { user } = useAuth();
   const [resources, setResources] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -123,7 +125,6 @@ const LaceHub = () => {
 
   const trackClick = async (resourceId: string, url: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from("resource_clicks").insert({
           resource_id: resourceId,

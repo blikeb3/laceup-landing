@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ interface TeamBuilderBadge {
 }
 
 export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
@@ -41,7 +43,6 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
   }, [open]);
 
   const fetchUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { data } = await supabase
@@ -70,7 +71,6 @@ export const ReferralDialog = ({ open, onOpenChange }: ReferralDialogProps) => {
   };
 
   const fetchAcceptedReferrals = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
     const { count } = await supabase

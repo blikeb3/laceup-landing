@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -110,6 +111,7 @@ interface UserActivityComment {
 }
 
 const UserProfile = () => {
+  const { user } = useAuth();
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -180,7 +182,6 @@ const UserProfile = () => {
     if (!userId) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         navigate("/auth");
         return;
@@ -391,7 +392,7 @@ const UserProfile = () => {
     } finally {
       setLoading(false);
     }
-  }, [userId, navigate, toast]);
+  }, [userId, navigate, toast, user]);
 
   const fetchEndorsements = useCallback(async () => {
     if (!userId) return;
@@ -411,7 +412,6 @@ const UserProfile = () => {
       setEndorsements((data as Endorsement[]) || []);
 
       // Check if current user has endorsed this profile
-      const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         const myEndorsementData = data?.find(e => e.endorser_id === user.id);
         setMyEndorsement(myEndorsementData || null);
@@ -419,7 +419,7 @@ const UserProfile = () => {
     } catch (error) {
       console.error("Error fetching endorsements:", error);
     }
-  }, [userId]);
+  }, [userId, user]);
 
   useEffect(() => {
     // Set loading state to true when userId changes

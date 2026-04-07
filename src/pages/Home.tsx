@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Link, useSearchParams } from "react-router-dom";
 import { PostCard } from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,7 @@ interface Profile {
 }
 
 const Home = () => {
+  const { user } = useAuth();
   const [posts, setPosts] = useState<Post[]>([]);
   const [postContent, setPostContent] = useState("");
   const [showComposer, setShowComposer] = useState(false);
@@ -106,7 +108,6 @@ const Home = () => {
   const suggestionsInitializedRef = useRef(false);
 
   const fetchCurrentUser = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       const { data: profile } = await supabase
         .from('profiles')
@@ -132,7 +133,7 @@ const Home = () => {
       return profile as Profile;
     }
     return null;
-  }, []);
+  }, [user?.id]);
 
   // Use a ref to track current filter for pagination
   const activeFilterRef = useRef(activeFilter);
@@ -255,7 +256,6 @@ const Home = () => {
   // Fetch pending connection requests on mount
   useEffect(() => {
     const fetchPendingRequests = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data, error } = await supabase
@@ -271,7 +271,7 @@ const Home = () => {
     };
 
     fetchPendingRequests();
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     if (showComposer && postTextRef.current) {
@@ -385,7 +385,6 @@ const Home = () => {
 
   const handleConnect = async (profileId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       // Check if request is already pending
@@ -661,7 +660,6 @@ const Home = () => {
 
   const fetchDrafts = async () => {
     setLoadingDrafts(true);
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoadingDrafts(false);
       return;
@@ -692,7 +690,6 @@ const Home = () => {
 
   const fetchBookmarks = async () => {
     setLoadingBookmarks(true);
-    const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       setLoadingBookmarks(false);
       return;
@@ -845,7 +842,6 @@ const Home = () => {
     setIsUploading(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       let mediaUrl = null;

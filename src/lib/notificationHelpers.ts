@@ -17,13 +17,8 @@ interface CreateNotificationParams {
  */
 export const createNotification = async (params: CreateNotificationParams) => {
     try {
-        // Check if user is authenticated
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-        if (authError) {
-            console.error('Auth error:', authError);
-            return null;
-        }
+        const { data: { session } } = await supabase.auth.getSession();
+        const user = session?.user;
 
         if (!user) {
             console.error('No authenticated user found');

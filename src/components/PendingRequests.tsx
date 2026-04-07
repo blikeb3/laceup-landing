@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
@@ -34,22 +35,12 @@ interface PendingRequestsProps {
 }
 
 export const PendingRequests = ({ embedded = false }: PendingRequestsProps) => {
+  const { user } = useAuth();
+  const currentUserId = user?.id ?? "";
   const { toast } = useToast();
-  const [currentUserId, setCurrentUserId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
   const [processingId, setProcessingId] = useState<string | null>(null);
-
-  // Fetch current user
-  useEffect(() => {
-    const getCurrentUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCurrentUserId(user.id);
-      }
-    };
-    getCurrentUser();
-  }, []);
 
   // Fetch pending requests
   const fetchPendingRequests = useCallback(async () => {

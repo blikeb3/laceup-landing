@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import {
     listMfaFactors,
     enrollTotpFactor,
@@ -35,6 +36,7 @@ export interface UseMfaReturn {
  * Custom hook for managing MFA state and operations
  */
 export function useMfa(): UseMfaReturn {
+    const { user } = useAuth();
     const [factors, setFactors] = useState<MfaFactor[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -47,8 +49,6 @@ export function useMfa(): UseMfaReturn {
         try {
             setLoading(true);
             setError(null);
-
-            const { data: { user } } = await supabase.auth.getUser();
 
             if (!user) {
                 setFactors([]);
@@ -68,7 +68,7 @@ export function useMfa(): UseMfaReturn {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [user?.id]);
 
     useEffect(() => {
         refreshFactors();

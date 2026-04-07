@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -33,6 +34,7 @@ export const EndorsementDialog = ({
   existingEndorsement,
   onSuccess,
 }: EndorsementDialogProps) => {
+  const { user } = useAuth();
   const [comment, setComment] = useState(existingEndorsement?.comment || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
@@ -41,7 +43,6 @@ export const EndorsementDialog = ({
     setIsSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
       if (existingEndorsement) {

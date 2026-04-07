@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical, User, Trash2, LogOut, Pencil, Check, X, Users, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -53,6 +54,7 @@ interface ChatHeaderProps {
 }
 
 export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConversation, onRenameGroup, onStartDirectMessage }: ChatHeaderProps) => {
+    const { user } = useAuth();
     const navigate = useNavigate();
     const { toast } = useToast();
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -99,7 +101,6 @@ export const ChatHeader = ({ conversation, onBack, showBackButton, onDeleteConve
     const handleDeleteConversation = async () => {
         setIsDeleting(true);
         try {
-            const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
             if (conversation.isGroup && conversation.threadId) {

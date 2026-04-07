@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import DOMPurify from "dompurify";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateLong } from "@/lib/dateFormat";
@@ -92,6 +93,7 @@ const resourceSchema = z.object({
 type ResourceFormData = z.infer<typeof resourceSchema>;
 
 const Admin = () => {
+  const { user } = useAuth();
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
@@ -285,8 +287,6 @@ const Admin = () => {
 
   const checkAdminAccess = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-
       if (!user) {
         navigate("/home");
         return;
@@ -319,7 +319,7 @@ const Admin = () => {
     } finally {
       setLoading(false);
     }
-  }, [navigate, toast, fetchResources, fetchDashboardData, fetchRoleChangeRequests]);
+  }, [navigate, toast, user?.id, fetchResources, fetchDashboardData, fetchRoleChangeRequests]);
 
   useEffect(() => {
     checkAdminAccess();
@@ -380,7 +380,6 @@ const Admin = () => {
 
     try {
       setIsUploading(true);
-      const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       let finalUrl = formData.url || '';
@@ -554,14 +553,12 @@ const Admin = () => {
   const handleRoleChangeDecision = async (requestId: string, decision: 'approved' | 'rejected', userId: string, requestedRole: string) => {
     setProcessingRequestId(requestId);
     try {
-      const { data: { user: adminUser } } = await supabase.auth.getUser();
-      if (!adminUser) throw new Error("Not authenticated");
+      if (!user) throw new Error("Not authenticated");
 
-      // Update the request status using a database function
       // This function handles the RLS policy and role updates
       const { data, error: updateError } = await supabase.rpc('approve_role_change_request', {
         p_request_id: requestId,
-        p_admin_id: adminUser.id,
+        p_admin_id: user.id,
         p_decision: decision
       });
 
