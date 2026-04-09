@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";

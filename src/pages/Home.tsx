@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
 import { Link, useSearchParams } from "react-router-dom";
 import { PostCard } from "@/components/PostCard";

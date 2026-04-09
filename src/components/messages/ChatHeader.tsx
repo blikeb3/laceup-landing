@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { MoreVertical, User, Trash2, LogOut, Pencil, Check, X, Users, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";

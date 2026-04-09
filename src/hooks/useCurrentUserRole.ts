@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { fetchUserRoles, UserRoles } from '@/lib/roleUtils';
 
 interface CurrentUserRoleState extends UserRoles {
