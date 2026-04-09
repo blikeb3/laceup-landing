@@ -23,6 +23,7 @@ import LandingPage from "./pages/LandingPage/LandingPage";
 import { PendingRequests } from "./components/PendingRequests";
 import { TooltipProvider } from "./components/ui/tooltip";
 import AuthCallback from "./pages/AuthCallback";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const queryClient = new QueryClient();
 
@@ -138,7 +139,9 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
