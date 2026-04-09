@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from "react";
-import { Search, User, X } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Search, UserPlus, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { notifyConnectionRequest } from "@/lib/notificationHelpers";
 
 interface SearchResult {
     id: string;
@@ -15,14 +18,56 @@ interface SearchResult {
 }
 
 export const UserSearchBar = ({ className }: { className?: string }) => {
+    const { user } = useAuth();
+    const { toast } = useToast();
     const [query, setQuery] = useState("");
     const [results, setResults] = useState<SearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
+    const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
+    const [connectedUsers, setConnectedUsers] = useState<Set<string>>(new Set());
+    const [connectingUserIds, setConnectingUserIds] = useState<Set<string>>(new Set());
+    const [currentUserName, setCurrentUserName] = useState("");
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    const searchableResults = useMemo(
+        () => results.filter((profile) => profile.id !== user?.id),
+        [results, user?.id]
+    );
+
+    useEffect(() => {
+        const fetchConnectionState = async () => {
+            if (!user) return;
+
+            const [{ data: profile }, { data: sentRequests }, { data: connections }] = await Promise.all([
+                supabase
+                    .from("profiles")
+                    .select("first_name, last_name")
+                    .eq("id", user.id)
+                    .single(),
+                supabase
+                    .from("connection_requests")
+                    .select("receiver_id")
+                    .eq("requester_id", user.id)
+                    .eq("status", "pending"),
+                supabase
+                    .from("connections")
+                    .select("connected_user_id")
+                    .eq("user_id", user.id),
+            ]);
+
+            const firstName = profile?.first_name || "";
+            const lastName = profile?.last_name || "";
+            setCurrentUserName(`${firstName} ${lastName}`.trim());
+            setPendingRequests(new Set((sentRequests || []).map((request) => request.receiver_id)));
+            setConnectedUsers(new Set((connections || []).map((connection) => connection.connected_user_id)));
+        };
+
+        fetchConnectionState();
+    }, [user?.id]);
 
     // Search for users when query changes
     useEffect(() => {
@@ -98,6 +143,7 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                     }).slice(0, 8);
                     
                     setResults(filtered);
+                    setSelectedIndex(-1);
                     setIsOpen(true);
                 }
             } catch (err) {
@@ -129,22 +175,22 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
     const handleKeyDown = (e: React.KeyboardEvent) => {
         switch (e.key) {
             case "ArrowDown":
-                if (!isOpen || results.length === 0) return;
+                if (!isOpen || searchableResults.length === 0) return;
                 e.preventDefault();
-                setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
+                setSelectedIndex(prev => (prev < searchableResults.length - 1 ? prev + 1 : prev));
                 break;
             case "ArrowUp":
-                if (!isOpen || results.length === 0) return;
+                if (!isOpen || searchableResults.length === 0) return;
                 e.preventDefault();
                 setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev));
                 break;
             case "Enter":
                 e.preventDefault();
-                if (selectedIndex >= 0 && results[selectedIndex]) {
-                    handleSelectUser(results[selectedIndex]);
-                } else if (results.length === 1) {
+                if (selectedIndex >= 0 && searchableResults[selectedIndex]) {
+                    handleSelectUser(searchableResults[selectedIndex]);
+                } else if (searchableResults.length === 1) {
                     // If only one result, go directly to that user's profile
-                    handleSelectUser(results[0]);
+                    handleSelectUser(searchableResults[0]);
                 } else if (query.trim().length >= 2) {
                     // Navigate to Network tab with search query
                     navigate(`/my-hub?search=${encodeURIComponent(query.trim())}`);
@@ -162,12 +208,73 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
         }
     };
 
-    const handleSelectUser = (user: SearchResult) => {
-        navigate(`/profile/${user.id}`);
+    const handleSelectUser = (selectedUser: SearchResult) => {
+        if (selectedUser.id === user?.id) {
+            navigate("/profile");
+        } else {
+            navigate(`/profile/${selectedUser.id}`);
+        }
         setQuery("");
         setResults([]);
         setIsOpen(false);
         setSelectedIndex(-1);
+    };
+
+    const handleConnect = async (targetUser: SearchResult, event: React.MouseEvent<HTMLButtonElement>) => {
+        event.stopPropagation();
+
+        if (!user || targetUser.id === user.id) return;
+        if (pendingRequests.has(targetUser.id) || connectedUsers.has(targetUser.id)) return;
+
+        setConnectingUserIds((prev) => new Set(prev).add(targetUser.id));
+
+        try {
+            const { data: existingRequest } = await supabase
+                .from("connection_requests")
+                .select("id")
+                .eq("requester_id", user.id)
+                .eq("receiver_id", targetUser.id)
+                .eq("status", "pending")
+                .maybeSingle();
+
+            if (existingRequest) {
+                setPendingRequests((prev) => new Set(prev).add(targetUser.id));
+                return;
+            }
+
+            const { error } = await supabase
+                .from("connection_requests")
+                .insert({
+                    requester_id: user.id,
+                    receiver_id: targetUser.id,
+                    status: "pending",
+                });
+
+            if (error) throw error;
+
+            setPendingRequests((prev) => new Set(prev).add(targetUser.id));
+            toast({
+                title: "Request Sent",
+                description: `Connection request sent to ${getUserDisplayName(targetUser)}.`,
+            });
+
+            if (currentUserName) {
+                await notifyConnectionRequest(targetUser.id, currentUserName, user.id);
+            }
+        } catch (error) {
+            console.error("Connection request error:", error);
+            toast({
+                title: "Error",
+                description: "Failed to send connection request.",
+                variant: "destructive",
+            });
+        } finally {
+            setConnectingUserIds((prev) => {
+                const next = new Set(prev);
+                next.delete(targetUser.id);
+                return next;
+            });
+        }
     };
 
     const clearSearch = () => {
@@ -200,7 +307,7 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                     placeholder="Search users..."
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => query.trim().length >= 2 && results.length > 0 && setIsOpen(true)}
+                    onFocus={() => query.trim().length >= 2 && searchableResults.length > 0 && setIsOpen(true)}
                     onKeyDown={handleKeyDown}
                     className="pl-9 pr-8 h-9 w-48 lg:w-64 bg-white/10 border-white/20 text-white placeholder:text-white/60 focus:bg-white/20 focus:border-white/40 transition-all"
                 />
@@ -221,17 +328,21 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                         <div className="p-4 text-center text-gray-500 text-sm">
                             Searching...
                         </div>
-                    ) : results.length > 0 ? (
+                    ) : searchableResults.length > 0 ? (
                         <ul className="max-h-80 overflow-y-auto">
-                            {results.map((user, index) => (
-                                <li key={user.id}>
+                            {searchableResults.map((user, index) => (
+                                <li
+                                    key={user.id}
+                                    onMouseEnter={() => setSelectedIndex(index)}
+                                    className={cn(
+                                        "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors",
+                                        selectedIndex === index && "bg-gray-50"
+                                    )}
+                                >
                                     <button
+                                        type="button"
                                         onClick={() => handleSelectUser(user)}
-                                        onMouseEnter={() => setSelectedIndex(index)}
-                                        className={cn(
-                                            "w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition-colors text-left",
-                                            selectedIndex === index && "bg-gray-50"
-                                        )}
+                                        className="flex min-w-0 flex-1 items-center gap-3 text-left"
                                     >
                                         {/* Avatar */}
                                         <div className="w-10 h-10 rounded-full bg-navy text-white flex items-center justify-center font-semibold text-sm overflow-hidden flex-shrink-0">
@@ -258,8 +369,26 @@ export const UserSearchBar = ({ className }: { className?: string }) => {
                                             )}
                                         </div>
 
-                                        <User className="h-4 w-4 text-gray-400 flex-shrink-0" />
                                     </button>
+                                    {connectedUsers.has(user.id) ? (
+                                        <span className="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-500">
+                                            Connected
+                                        </span>
+                                    ) : pendingRequests.has(user.id) ? (
+                                        <span className="rounded-full bg-amber-50 px-2 py-1 text-[11px] font-medium text-amber-700">
+                                            Pending
+                                        </span>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={(event) => handleConnect(user, event)}
+                                            disabled={connectingUserIds.has(user.id)}
+                                            className="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-navy px-2.5 py-1 text-[11px] font-medium text-white transition-colors hover:bg-navy-light disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            <UserPlus className="h-3 w-3" />
+                                            {connectingUserIds.has(user.id) ? "Sending" : "Connect"}
+                                        </button>
+                                    )}
                                 </li>
                             ))}
                         </ul>

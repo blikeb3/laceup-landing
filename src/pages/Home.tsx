@@ -9,13 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { MentionInput, MentionInputRef } from "@/components/MentionInput";
 import { Dialog } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Image, Video, Calendar, X, Loader2, UserPlus, FileText, Users, Eye, Filter } from "lucide-react";
+import { Image, Video, Calendar, X, Loader2, UserPlus, Filter, Briefcase, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { useUserAnalytics, formatCount } from "@/hooks/useUserAnalytics";
 import { getFullName, getInitials } from "@/lib/nameUtils";
 import {
   Tooltip,
@@ -59,6 +58,17 @@ interface Profile {
   skills?: string[] | null;
 }
 
+interface OpportunityPreview {
+  id: string;
+  title: string;
+  company_name: string;
+  location: string | null;
+  type: string;
+  career_interest: string | null;
+  application_deadline: string | null;
+  created_at: string;
+}
+
 const Home = () => {
   const { user } = useAuth();
   const { baseRole: currentUserRole, hasAdminRole: currentUserIsAdmin } = useCurrentUserRole();
@@ -87,6 +97,7 @@ const Home = () => {
   const [suggestions, setSuggestions] = useState<SuggestedProfile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<Set<string>>(new Set());
   const [resources, setResources] = useState<Resource[]>([]);
+  const [opportunities, setOpportunities] = useState<OpportunityPreview[]>([]);
   const [highlightedPostId, setHighlightedPostId] = useState<string | null>(null);
   const [sharedPost, setSharedPost] = useState<Post | null>(null);
   const postTextRef = useRef<MentionInputRef>(null);
@@ -98,9 +109,6 @@ const Home = () => {
     setActiveFilter(filter);
     fetchPosts(true, filter);
   };
-
-  // Use real analytics
-  const { postsCount, connectionsCount, profileViewsCount, profileViews7d, profileViews30d } = useUserAnalytics(currentUser?.id);
 
   // Refs to keep stable values for callbacks used in effects
   const postsRef = useRef<Post[]>(posts);
@@ -499,6 +507,43 @@ const Home = () => {
     }
   }, []);
 
+  const fetchOpportunities = useCallback(async (currentProfile?: Profile | null) => {
+    try {
+      const { data, error } = await supabase
+        .from("opportunities")
+        .select("id, title, company_name, location, type, career_interest, application_deadline, created_at")
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+        .limit(12);
+
+      if (error) throw error;
+
+      const skillTerms = Array.isArray(currentProfile?.skills)
+        ? currentProfile.skills.map((skill) => skill.toLowerCase())
+        : [];
+      const sportTerm = currentProfile?.sport?.toLowerCase() || "";
+
+      const ranked = (data || [])
+        .map((opportunity) => {
+          const interest = (opportunity.career_interest || "").toLowerCase();
+          let score = 0;
+
+          if (sportTerm && interest.includes(sportTerm)) score += 2;
+          if (skillTerms.some((skill) => interest.includes(skill))) score += 3;
+
+          return { ...opportunity, score };
+        })
+        .sort((a, b) => b.score - a.score || new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 3)
+        .map(({ score: _score, ...opportunity }) => opportunity);
+
+      setOpportunities(ranked);
+    } catch (error) {
+      console.error("Error fetching opportunities:", error);
+      setOpportunities([]);
+    }
+  }, []);
+
   // Fetch a single shared post by ID
   const fetchSharedPost = useCallback(async (postId: string) => {
     try {
@@ -607,6 +652,7 @@ const Home = () => {
       }
 
       fetchResources();
+      fetchOpportunities(userProfile);
     };
     init();
 
@@ -629,7 +675,7 @@ const Home = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [fetchCurrentUser, fetchResources, fetchPosts, fetchSharedPost, searchParams, setSearchParams]);
+  }, [fetchCurrentUser, fetchOpportunities, fetchResources, fetchPosts, fetchSharedPost, searchParams, setSearchParams]);
 
   useEffect(() => {
     if (currentUser?.id && !suggestionsInitializedRef.current) {
@@ -976,7 +1022,7 @@ const Home = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Sidebar - Hidden on mobile, shown on large screens */}
-        <aside className="hidden lg:block lg:col-span-3 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <aside className="hidden lg:block lg:col-span-3 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-hidden lg:hover:overflow-y-auto lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden">
           <Card className="p-4">
             <div className="flex items-center space-x-3">
               <Avatar className="w-16 h-16">
@@ -1031,69 +1077,59 @@ const Home = () => {
               </div>
             </div>
 
-            <div className="mt-4 grid grid-cols-3 gap-2 text-center">
-              <div>
-                <div className="flex items-center justify-center gap-1">
-                  <FileText className="h-3 w-3 text-gold" />
-                  <p className="font-bold">{formatCount(postsCount)}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Posts</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1">
-                  <Users className="h-3 w-3 text-foreground" />
-                  <p className="font-bold">{formatCount(connectionsCount)}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Connections</p>
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1">
-                  <Eye className="h-3 w-3 text-foreground" />
-                  <p className="font-bold">{formatCount(profileViewsCount)}</p>
-                </div>
-                <p className="text-xs text-muted-foreground">Views</p>
-              </div>
-            </div>
           </Card>
 
           <Card className="p-4">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-semibold">LaceHub Resources</h4>
-              <Link to="/lace-hub">
+              <h4 className="font-semibold">Opportunities</h4>
+              <Link to="/opportunities">
                 <Button variant="ghost" size="sm" className="text-xs">
                   View All
                 </Button>
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              {resources.length === 0 ? (
-                <p className="text-muted-foreground text-xs col-span-2">No resources available</p>
+            <div className="space-y-3">
+              {opportunities.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No opportunities available right now.</p>
               ) : (
-                resources.map((resource) => (
-                  <a
-                    key={resource.id}
-                    href={resource.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex flex-col items-center gap-2 p-3 rounded border hover:bg-secondary cursor-pointer transition-colors"
+                opportunities.map((opportunity) => (
+                  <Link
+                    key={opportunity.id}
+                    to={`/opportunities?id=${opportunity.id}`}
+                    className="block rounded-lg border p-3 transition-colors hover:bg-secondary"
                   >
-                    <div className="w-16 h-16 flex items-center justify-center">
-                      {resource.logo_url ? (
-                        <img
-                          src={resource.logo_url}
-                          alt={resource.title}
-                          className="max-w-full max-h-full object-contain"
-                        />
-                      ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-navy text-gold">
+                        <Briefcase className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0 flex-1 [&>span:first-child]:hidden">
                         <span className="text-2xl">📄</span>
-                      )}
+                        <p className="line-clamp-2 text-sm font-medium">{opportunity.title}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{opportunity.company_name}</p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <Badge variant="secondary" className="capitalize">
+                            {opportunity.type}
+                          </Badge>
+                          {opportunity.location && (
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              {opportunity.location}
+                            </span>
+                          )}
+                        </div>
+                        {opportunity.career_interest && (
+                          <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                            {opportunity.career_interest}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <span className="text-center text-xs font-medium line-clamp-2">{resource.title}</span>
-                  </a>
+                  </Link>
                 ))
               )}
             </div>
           </Card>
+
         </aside>
 
         {/* Main Feed */}
@@ -1435,18 +1471,46 @@ const Home = () => {
         </main>
 
         {/* Right Sidebar - Hidden on mobile */}
-        <aside className="hidden lg:block lg:col-span-3 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto">
+        <aside className="hidden lg:block lg:col-span-3 space-y-4 lg:sticky lg:top-20 lg:self-start lg:max-h-[calc(100vh-6rem)] lg:overflow-y-hidden lg:hover:overflow-y-auto lg:[scrollbar-width:none] lg:[-ms-overflow-style:none] lg:[&::-webkit-scrollbar]:hidden">
           <Card className="p-4">
-            <h4 className="font-semibold mb-3">Analytics</h4>
-            <div className="grid grid-cols-2 gap-4 text-center">
-              <div>
-                <p className="text-2xl font-bold">{formatCount(profileViews7d)}</p>
-                <p className="text-xs text-muted-foreground">Views (7d)</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{formatCount(profileViews30d)}</p>
-                <p className="text-xs text-muted-foreground">Views (30d)</p>
-              </div>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-semibold">Quick LaceHub</h4>
+              <Link to="/lace-hub">
+                <Button variant="ghost" size="sm" className="text-xs">
+                  Browse
+                </Button>
+              </Link>
+            </div>
+            <div className="space-y-2">
+              {resources.length === 0 ? (
+                <p className="text-muted-foreground text-sm">No resources available.</p>
+              ) : (
+                resources.slice(0, 3).map((resource) => (
+                  <a
+                    key={resource.id}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 rounded-lg border p-2.5 transition-colors hover:bg-secondary"
+                  >
+                    <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted">
+                      {resource.logo_url ? (
+                        <img
+                          src={resource.logo_url}
+                          alt={resource.title}
+                          className="h-full w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs font-semibold text-muted-foreground">LH</span>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{resource.title}</p>
+                      <p className="truncate text-[11px] text-muted-foreground">{resource.category}</p>
+                    </div>
+                  </a>
+                ))
+              )}
             </div>
           </Card>
 
@@ -1459,25 +1523,25 @@ const Home = () => {
                 </Button>
               </Link>
             </div>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {suggestions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No suggestions available</p>
               ) : (
                 suggestions.map((profile) => (
-                  <div key={profile.id} className="flex items-center gap-3 p-2 rounded hover:bg-secondary transition-colors">
-                    <Link to={`/profile/${profile.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                      <Avatar className="h-10 w-10">
+                  <div key={profile.id} className="flex items-center gap-2 rounded-lg p-2 transition-colors hover:bg-secondary">
+                    <Link to={`/profile/${profile.id}`} className="flex items-center gap-2 flex-1 min-w-0">
+                      <Avatar className="h-8 w-8">
                         <AvatarImage src={profile.avatar_url || undefined} alt={getFullName(profile.first_name, profile.last_name)} />
-                        <AvatarFallback className="bg-gold text-navy text-sm font-semibold">
+                        <AvatarFallback className="bg-gold text-navy text-xs font-semibold">
                           {getInitials(profile.first_name, profile.last_name)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-1 mb-1">
-                          <p className="font-medium text-sm truncate">{getFullName(profile.first_name, profile.last_name) || 'User'}</p>
+                        <div className="flex flex-wrap items-center gap-1">
+                          <p className="truncate text-sm font-medium">{getFullName(profile.first_name, profile.last_name) || 'User'}</p>
                           {profile.user_role && (
                             <Badge
-                              className="text-xs px-1 py-0 h-5 bg-navy text-gold border-navy"
+                              className="h-4 bg-navy px-1 py-0 text-[10px] text-gold border-navy"
                             >
                               {profile.user_role.charAt(0).toUpperCase() + profile.user_role.slice(1)}
                             </Badge>
@@ -1495,10 +1559,10 @@ const Home = () => {
                                           <img
                                             src={badge.image_url}
                                             alt={badge.name}
-                                            className="w-4 h-4 object-contain"
+                                            className="h-3.5 w-3.5 object-contain"
                                           />
                                         ) : badge.icon ? (
-                                          <span className="text-sm">{badge.icon}</span>
+                                          <span className="text-xs">{badge.icon}</span>
                                         ) : null}
                                       </div>
                                     </TooltipTrigger>
@@ -1512,7 +1576,7 @@ const Home = () => {
                             </TooltipProvider>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground truncate">{profile.university}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">{profile.university}</p>
                       </div>
                     </Link>
                     <Button
@@ -1522,15 +1586,15 @@ const Home = () => {
                         e.stopPropagation();
                         handleConnect(profile.id);
                       }}
-                      className={pendingRequests.has(profile.id) ? "shrink-0 text-amber-600 border-amber-600 hover:bg-amber-50" : "shrink-0"}
+                      className={pendingRequests.has(profile.id) ? "h-8 shrink-0 px-2 text-xs text-amber-600 border-amber-600 hover:bg-amber-50" : "h-8 shrink-0 px-2"}
                     >
                       {pendingRequests.has(profile.id) ? (
                         <>
-                          <X className="h-4 w-4 mr-1" />
+                          <X className="mr-1 h-3 w-3" />
                           Pending
                         </>
                       ) : (
-                        <UserPlus className="h-4 w-4" />
+                        <UserPlus className="h-3.5 w-3.5" />
                       )}
                     </Button>
                   </div>

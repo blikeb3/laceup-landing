@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCurrentUserRole } from "@/hooks/useCurrentUserRole";
@@ -99,6 +99,7 @@ const matchesLocationFilter = (opp: Opportunity, rawFilter: string) => {
 const Opportunities = () => {
   const { user } = useAuth();
   const { baseRole: currentUserRole } = useCurrentUserRole();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
@@ -241,6 +242,16 @@ const Opportunities = () => {
   }, [opportunities, selectedType, locationFilter, levelFilter, careerFilter]);
 
   useEffect(() => { applyFilters(); }, [applyFilters]);
+
+  useEffect(() => {
+    const opportunityId = searchParams.get("id");
+    if (!opportunityId) return;
+
+    const match = opportunities.find((opportunity) => opportunity.id === opportunityId);
+    if (match) {
+      setViewingDetailsId(match.id);
+    }
+  }, [opportunities, searchParams]);
 
   const fetchOpportunities = useCallback(async (reset: boolean = true) => {
     if (!reset && loadingOpportunitiesRef.current) return;
@@ -965,7 +976,20 @@ const Opportunities = () => {
 
             {/* Details Dialogs */}
             {filteredOpportunities.map((opportunity) => (
-              <Dialog key={`details-dialog-${opportunity.id}`} open={viewingDetailsId === opportunity.id} onOpenChange={(open) => !open && setViewingDetailsId(null)}>
+              <Dialog
+                key={`details-dialog-${opportunity.id}`}
+                open={viewingDetailsId === opportunity.id}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setViewingDetailsId(null);
+                    setSearchParams((prev) => {
+                      const next = new URLSearchParams(prev);
+                      next.delete("id");
+                      return next;
+                    });
+                  }
+                }}
+              >
                 <DialogContent className="w-[95vw] sm:w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto bg-background border-border">
                   <DialogHeader>
                     <div className="flex items-center gap-3 mb-2">

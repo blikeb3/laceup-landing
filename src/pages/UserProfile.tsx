@@ -193,22 +193,54 @@ const UserProfile = () => {
         return;
       }
 
-      // Fetch the user's profile
-      const { data: profileData, error: profileError } = await supabase
+      // Fetch a minimal public profile first so navigation succeeds even if
+      // some extended profile fields are not readable for other users.
+      const { data: publicProfileData, error: publicProfileError } = await supabase
         .from("profiles")
-        .select("*")
+        .select(`
+          id,
+          first_name,
+          last_name,
+          avatar_url,
+          university,
+          sport
+        `)
         .eq("id", userId)
-        .single();
+        .maybeSingle();
 
-      if (profileError || !profileData) {
+      if (publicProfileError || !publicProfileData) {
         toast({
           title: "Profile not found",
           description: "The user profile you're looking for doesn't exist.",
           variant: "destructive",
         });
-        navigate("/home");
+        setProfile(null);
         return;
       }
+
+      const { data: extendedProfileData } = await supabase
+        .from("profiles")
+        .select(`
+          biography,
+          location,
+          degree,
+          degrees,
+          about,
+          skills,
+          email,
+          phone,
+          athletic_accomplishments,
+          academic_accomplishments,
+          job_experiences,
+          contact_privacy
+        `)
+        .eq("id", userId)
+        .maybeSingle();
+
+      const profileData = {
+        ...publicProfileData,
+        ...(extendedProfileData || {}),
+      };
 
       // Sanitize profile based on privacy settings
       const sanitizedProfile = await sanitizeProfileForViewer(profileData, user.id);
