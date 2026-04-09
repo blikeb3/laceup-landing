@@ -3,4 +3,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
-  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xnbbgmkywspodwdrlzhq.supabase.co; connect-src 'self' https://xnbbgmkywspodwdrlzhq.supabase.co wss://xnbbgmkywspodwdrlzhq.supabase.co https://api.pwnedpasswords.com; font-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://xnbbgmkywspodwdrlzhq.supabase.co; media-src 'self' blob: https://xnbbgmkywspodwdrlzhq.supabase.co; connect-src 'self' https://xnbbgmkywspodwdrlzhq.supabase.co wss://xnbbgmkywspodwdrlzhq.supabase.co https://api.pwnedpasswords.com; font-src 'self' data:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'
