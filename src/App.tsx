@@ -20,6 +20,7 @@ import LaceHub from "./pages/LaceHub";
 import MyHub from "./pages/MyHub";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage/LandingPage";
+import Login from "./pages/LandingPage/Login/Login";
 import { PendingRequests } from "./components/PendingRequests";
 import { TooltipProvider } from "./components/ui/tooltip";
 import AuthCallback from "./pages/AuthCallback";
@@ -29,14 +30,15 @@ const queryClient = new QueryClient();
 const AppContent = () => {
   useSessionTimeout();
   const location = useLocation();
-  const isLandingPage = location.pathname === "/";
+  const isLandingPage = location.pathname === "/" || location.pathname.startsWith("/landing");
 
   return (
     <div className="min-h-screen bg-background">
       {!isLandingPage && <Navigation />}
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/auth" element={<Auth />} />
+        <Route path="/auth" element={<Login />} />
+        {/* <Route path="/auth" element={<Auth />} /> */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route
