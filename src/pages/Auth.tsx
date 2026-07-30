@@ -579,26 +579,24 @@ const Auth = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="signup-university">University <span style={{ color: "red" }}>*</span></Label>
+                  <Label htmlFor="signup-university">University</Label>
                   <Input
                     id="signup-university"
                     type="text"
                     placeholder="University Name"
                     value={university}
                     onChange={(e) => setUniversity(e.target.value)}
-                    required
                   />
                 </div>
                 {userType === "athlete" && (
                   <div className="space-y-2">
-                    <Label htmlFor="signup-sport">Sport <span style={{ color: "red" }}>*</span></Label>
+                    <Label htmlFor="signup-sport">Sport</Label>
                     <Input
                       id="signup-sport"
                       type="text"
                       placeholder="e.g., Basketball, Soccer, Track"
                       value={sport}
                       onChange={(e) => setSport(e.target.value)}
-                      required
                     />
                   </div>
                 )}
