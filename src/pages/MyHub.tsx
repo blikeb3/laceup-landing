@@ -745,13 +745,20 @@ const MyHub = () => {
 
   const handleDisconnect = async (profileId: string) => {
     try {
-      const { error } = await supabase
+      // Delete both directions of the connection (they are stored as two rows)
+      const { error: error1 } = await supabase
         .from("connections")
         .delete()
         .eq("user_id", currentUserId)
         .eq("connected_user_id", profileId);
 
-      if (error) throw error;
+      const { error: error2 } = await supabase
+        .from("connections")
+        .delete()
+        .eq("user_id", profileId)
+        .eq("connected_user_id", currentUserId);
+
+      if (error1 || error2) throw error1 || error2;
 
       toast({
         title: "Disconnected",

@@ -7,25 +7,6 @@ interface ContactPrivacyCheck {
     canViewPhone: boolean;
 }
 
-interface ProfileData {
-    id: string;
-    name?: string | null;
-    biography?: string | null;
-    location?: string | null;
-    degree?: string | null;
-    about?: string | null;
-    skills?: string[] | null;
-    avatar_url?: string | null;
-    email?: string | null;
-    phone?: string | null;
-    university?: string | null;
-    sport?: string | null;
-    athletic_accomplishments?: string | null;
-    academic_accomplishments?: string | null;
-    contact_privacy?: string | null;
-    [key: string]: unknown;
-}
-
 /**
  * Check if the current user can view another user's contact information
  * based on privacy settings
@@ -70,24 +51,49 @@ export async function checkContactPrivacy(
     };
 }
 
+// Every profiles column except email and phone — contact info is fetched
+// separately, and only after the privacy check passes
+const PROFILE_COLUMNS_WITHOUT_CONTACT =
+    'id, first_name, last_name, avatar_url, resume_url, university, sport, location, about, biography, ' +
+    'athletic_accomplishments, academic_accomplishments, skills, degrees, job_experiences, ' +
+    'approval_status, contact_privacy, created_at, updated_at';
+
 /**
- * Sanitize profile data based on contact privacy settings
+ * Fetch another user's profile without contact info, then fetch email/phone
+ * in a second query only if the viewer is permitted to see them — so private
+ * contact data never leaves the server for viewers who can't see it.
  */
-export async function sanitizeProfileForViewer(
-    profile: ProfileData,
-    currentUserId: string
-): Promise<ProfileData> {
-    if (!profile) return profile;
+export async function fetchProfileWithContactPrivacy(targetUserId: string, currentUserId: string) {
+    const { data: profile, error } = await supabase
+        .from('profiles')
+        .select(PROFILE_COLUMNS_WITHOUT_CONTACT)
+        .eq('id', targetUserId)
+        .single();
+
+    if (error || !profile) {
+        return { data: null, error };
+    }
+
+    let email: string | null = null;
+    let phone: string | null = null;
 
     const privacy = await checkContactPrivacy(
-        profile.id,
+        targetUserId,
         currentUserId,
         profile.contact_privacy || 'connections'
     );
 
-    return {
-        ...profile,
-        email: privacy.canViewEmail ? profile.email : null,
-        phone: privacy.canViewPhone ? profile.phone : null
-    };
+    if (privacy.canViewEmail || privacy.canViewPhone) {
+        const { data: contact } = await supabase
+            .from('profiles')
+            .select('email, phone')
+            .eq('id', targetUserId)
+            .single();
+
+        email = privacy.canViewEmail ? contact?.email ?? null : null;
+        phone = privacy.canViewPhone ? contact?.phone ?? null : null;
+    }
+
+    return { data: { ...profile, email, phone }, error: null };
 }
+

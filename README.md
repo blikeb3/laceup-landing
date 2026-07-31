@@ -1,20 +1,24 @@
 # LaceUP
 
-A professional networking platform connecting mentors, employers, and peers. Built with React, TypeScript, and Supabase.
+A professional networking platform for student-athletes, connecting them with mentors, employers, and peers. Built with React, TypeScript, and Supabase.
 
 ## Features
 
-- **User Profiles** - Create and customize your professional profile with skills, experience, and resume uploads
-- **Messaging** - Real-time messaging with image and file attachments
+- **User Profiles** - Create and customize your professional profile with skills, degrees, experience, and resume uploads
+- **Connections** - Send, accept, and manage connection requests; endorsements and referrals
+- **Messaging** - Real-time 1:1 and group messaging with image and file attachments
 - **Opportunities** - Browse and post job opportunities and mentorship programs
-- **LaceHub** - Community hub for networking and collaboration
-- **MyHub** - Personal dashboard for managing your connections and activity
+- **Notifications** - Real-time notifications for likes, comments, mentions, connections, and jobs
+- **LaceHub** - Curated resource library
+- **MyHub** - Personal dashboard for managing your connections and groups
+- **Security** - TOTP two-factor authentication with backup codes, breached-password checks
+- **Admin** - User management, role-change approvals, badges, resources, and feedback triage
 
 ## Tech Stack
 
 - **Frontend**: React 18, TypeScript, Vite
 - **Styling**: Tailwind CSS, shadcn/ui components
-- **Backend**: Supabase (Auth, Database, Storage, Realtime)
+- **Backend**: Supabase (Auth, Database, Storage, Realtime, Edge Functions)
 - **State Management**: TanStack React Query
 - **Routing**: React Router v6
 
@@ -29,8 +33,8 @@ A professional networking platform connecting mentors, employers, and peers. Bui
 ### 1. Clone the repository
 
 ```sh
-git clone https://github.com/BlakeHerring13/LaceUP.git
-cd LaceUP
+git clone https://github.com/blikeb3/laceup-landing.git
+cd laceup-landing
 ```
 
 ### 2. Install dependencies
@@ -43,12 +47,17 @@ bun install
 
 ### 3. Set up environment variables
 
-The `.env` file in the root directory has our project's Supabase credentials:
+Copy `.env.example` to `.env` and fill in your Supabase project's values:
 
 ```env
-VITE_SUPABASE_URL=your_supabase_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+VITE_SUPABASE_PROJECT_ID=your_project_id
+VITE_SUPABASE_URL=https://your_project_id.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
 ```
+
+`.env` is gitignored — never commit it. Server-side secrets (Brevo, service role key) belong only in Supabase Edge Function secrets; see [docs/API_KEY_SECURITY.md](docs/API_KEY_SECURITY.md).
+
+Note: the Content-Security-Policy in `public/_headers` allowlists the Supabase project host. If you point the app at a different Supabase project, update `_headers` too.
 
 ### 4. Start the development server
 
@@ -56,7 +65,7 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 npm run dev
 ```
 
-The app will be available at `http://localhost:5173`
+The app will be available at `http://localhost:8080` (see `vite.config.ts`).
 
 ## Available Scripts
 
@@ -71,10 +80,14 @@ The app will be available at `http://localhost:5173`
 
 ## Supabase Setup
 
-### Link to your Supabase project
+> **Important:** the repo is not currently linked to the Supabase project (`supabase/config.toml` does not exist), and most of the live schema — including the notifications DDL, most RPC functions, and all Edge Function source (`send-referral`, `referral-joined`, `notify-job-application`) — exists only in the hosted project, not in this repo. Historically, migrations were applied by pasting SQL into the dashboard SQL Editor. To bring the repo and database back in sync, link the project and pull:
 
 ```sh
 npx supabase link --project-ref your-project-ref
+npx supabase db pull                 # capture the live schema as a migration
+npx supabase functions download send-referral
+npx supabase functions download referral-joined
+npx supabase functions download notify-job-application
 ```
 
 ### Push database migrations
@@ -91,7 +104,6 @@ npx supabase gen types typescript --project-id your-project-id > src/integration
 
 ### Referral email invites (Brevo)
 
-- Run migrations to add the `referrals` table: `npx supabase db push`.
 - Deploy Edge Functions: `supabase functions deploy send-referral` and `supabase functions deploy referral-joined`.
 - Configure function secrets (Supabase Dashboard → Edge Functions → Manage secrets):
 	- `SUPABASE_SERVICE_ROLE_KEY`
@@ -114,8 +126,10 @@ npx supabase migration new migration_name
 ```
 src/
 ├── components/       # Reusable UI components
+│   ├── landing-page/ # Public landing page sections
 │   ├── messages/     # Messaging-related components
 │   └── ui/           # shadcn/ui components
+├── contexts/         # React contexts (auth)
 ├── hooks/            # Custom React hooks
 ├── integrations/     # Third-party integrations (Supabase)
 ├── lib/              # Utility functions
@@ -124,9 +138,20 @@ src/
 └── constants/        # App constants
 
 supabase/
-├── config.toml       # Supabase configuration
+├── functions/        # Edge Functions (source currently lives only in the hosted project)
 └── migrations/       # Database migrations
+
+docs/                 # Feature and security documentation
 ```
+
+## Documentation
+
+Feature and security docs live in [docs/](docs/):
+
+- [CONNECTION_REQUESTS.md](docs/CONNECTION_REQUESTS.md) / [DATA_MIGRATION_GUIDE.md](docs/DATA_MIGRATION_GUIDE.md) — connection request system and data migration
+- [NOTIFICATION_ARCHITECTURE.md](docs/NOTIFICATION_ARCHITECTURE.md) / [NOTIFICATION_USER_GUIDE.md](docs/NOTIFICATION_USER_GUIDE.md) — notification system
+- [2FA_IMPLEMENTATION.md](docs/2FA_IMPLEMENTATION.md) / [2FA_QUICK_START.md](docs/2FA_QUICK_START.md) — two-factor auth
+- [API_KEY_SECURITY.md](docs/API_KEY_SECURITY.md), [SECURE_ERROR_HANDLING.md](docs/SECURE_ERROR_HANDLING.md), [SECURITY_AUDIT_REPORT.md](docs/SECURITY_AUDIT_REPORT.md), [SECURITY_REVIEW.md](docs/SECURITY_REVIEW.md) — security
 
 ## Contributing
 
@@ -139,4 +164,3 @@ supabase/
 ## License
 
 This project is private and proprietary.
-

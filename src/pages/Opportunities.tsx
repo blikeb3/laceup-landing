@@ -98,7 +98,7 @@ const matchesLocationFilter = (opp: Opportunity, rawFilter: string) => {
 
 const Opportunities = () => {
   const { user } = useAuth();
-  const { baseRole: currentUserRole } = useCurrentUserRole();
+  const { baseRole: currentUserRole, hasAdminRole } = useCurrentUserRole();
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [filteredOpportunities, setFilteredOpportunities] = useState<Opportunity[]>([]);
   const [myApplications, setMyApplications] = useState<Application[]>([]);
@@ -532,8 +532,10 @@ const Opportunities = () => {
     );
   };
 
-  const canPostOpportunity = currentUserRole === "mentor" || currentUserRole === "employer" || currentUserRole === "admin";
-  const canApplyToOpportunity = currentUserRole === "athlete" || currentUserRole === "admin";
+  // baseRole never returns "admin" (roleUtils strips it), so admin access
+  // must come from hasAdminRole
+  const canPostOpportunity = currentUserRole === "mentor" || currentUserRole === "employer" || hasAdminRole;
+  const canApplyToOpportunity = currentUserRole === "athlete" || hasAdminRole;
 
   useEffect(() => {
     const observer = new IntersectionObserver(

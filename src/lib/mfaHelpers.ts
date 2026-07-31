@@ -15,6 +15,9 @@ export interface BackupCode {
     used: boolean;
 }
 
+const BACKUP_CODE_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const BACKUP_CODE_PBKDF2_ITERATIONS = 100_000;
+
 /**
  * Generate cryptographically secure backup codes
  */
@@ -22,30 +25,65 @@ export function generateBackupCodes(count: number = 10): string[] {
     const codes: string[] = [];
 
     for (let i = 0; i < count; i++) {
-        // Generate 8-character alphanumeric code
-        const code = Array.from({ length: 8 }, () => {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-            return chars.charAt(Math.floor(Math.random() * chars.length));
-        }).join('');
+        // Generate 8-character alphanumeric code from a CSPRNG, with
+        // rejection sampling to avoid modulo bias
+        const chars: string[] = [];
+        while (chars.length < 8) {
+            const bytes = new Uint8Array(16);
+            crypto.getRandomValues(bytes);
+            for (const byte of bytes) {
+                if (chars.length >= 8) break;
+                // 252 is the largest multiple of 36 that fits in a byte
+                if (byte < 252) chars.push(BACKUP_CODE_CHARS[byte % BACKUP_CODE_CHARS.length]);
+            }
+        }
+        const code = chars.join('');
 
         // Format as XXXX-XXXX for readability
-        const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
-        codes.push(formatted);
+        codes.push(`${code.slice(0, 4)}-${code.slice(4)}`);
     }
 
     return codes;
 }
 
 /**
- * Hash a backup code for secure storage using Web Crypto API
+ * Hash a backup code for secure storage: PBKDF2-SHA-256, salted with the
+ * user id so identical codes hash differently per user and precomputed
+ * tables are useless. Deterministic per (user, code) so verification can
+ * still look the hash up by equality.
  */
-export async function hashBackupCode(code: string): Promise<string> {
+export async function hashBackupCode(userId: string, code: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(code.replace('-', '')),
+        'PBKDF2',
+        false,
+        ['deriveBits'],
+    );
+    const bits = await crypto.subtle.deriveBits(
+        {
+            name: 'PBKDF2',
+            hash: 'SHA-256',
+            salt: encoder.encode(`laceup-backup-code:${userId}`),
+            iterations: BACKUP_CODE_PBKDF2_ITERATIONS,
+        },
+        keyMaterial,
+        256,
+    );
+    return Array.from(new Uint8Array(bits)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Legacy unsalted SHA-256 hash. Kept only so backup codes issued before the
+ * PBKDF2 upgrade still verify; new codes are never stored with this.
+ */
+async function legacyHashBackupCode(code: string): Promise<string> {
     const encoder = new TextEncoder();
     const data = encoder.encode(code.replace('-', ''));
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    return hashHex;
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
 /**
@@ -272,7 +310,7 @@ export async function storeBackupCodes(userId: string, codes: string[]) {
     try {
         const hashedCodesPromises = codes.map(async (code) => ({
             user_id: userId,
-            code_hash: await hashBackupCode(code),
+            code_hash: await hashBackupCode(userId, code),
         }));
 
         const hashedCodes = await Promise.all(hashedCodesPromises);
@@ -298,16 +336,23 @@ export async function storeBackupCodes(userId: string, codes: string[]) {
  */
 export async function verifyBackupCode(userId: string, code: string) {
     try {
-        const codeHash = await hashBackupCode(code);
+        // Match against the current PBKDF2 hash, falling back to the legacy
+        // unsalted SHA-256 hash for codes issued before the upgrade
+        const [codeHash, legacyHash] = await Promise.all([
+            hashBackupCode(userId, code),
+            legacyHashBackupCode(code),
+        ]);
 
         // Check if code exists and is unused
-        const { data: backupCode, error: fetchError } = await supabase
+        const { data: backupCodes, error: fetchError } = await supabase
             .from('user_mfa_backup_codes')
             .select('*')
             .eq('user_id', userId)
-            .eq('code_hash', codeHash)
+            .in('code_hash', [codeHash, legacyHash])
             .is('used_at', null)
-            .single();
+            .limit(1);
+
+        const backupCode = backupCodes?.[0];
 
         if (fetchError || !backupCode) {
             return {

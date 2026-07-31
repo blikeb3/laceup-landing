@@ -10,7 +10,7 @@ import { MapPin, Briefcase, ArrowLeft, UserPlus, UserMinus, MessageSquare, Loade
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingSpinner } from "@/components/LoadingSpinner";
-import { sanitizeProfileForViewer } from "@/lib/contactPrivacy";
+import { fetchProfileWithContactPrivacy } from "@/lib/contactPrivacy";
 import { trackProfileView } from "@/hooks/useUserAnalytics";
 import { getDisplayName, getInitials } from "@/lib/nameUtils";
 import { formatDateLong } from "@/lib/dateFormat";
@@ -193,12 +193,9 @@ const UserProfile = () => {
         return;
       }
 
-      // Fetch the user's profile
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
+      // Fetch the user's profile; email/phone are only fetched if the
+      // privacy check passes, so private contact info never crosses the wire
+      const { data: profileData, error: profileError } = await fetchProfileWithContactPrivacy(userId, user.id);
 
       if (profileError || !profileData) {
         toast({
@@ -210,8 +207,7 @@ const UserProfile = () => {
         return;
       }
 
-      // Sanitize profile based on privacy settings
-      const sanitizedProfile = await sanitizeProfileForViewer(profileData, user.id);
+      const sanitizedProfile = profileData;
       const rawJobs = (profileData.job_experiences as unknown) || [];
       const parsedJobs: JobExperience[] = Array.isArray(rawJobs)
         ? rawJobs.map((j) => ({

@@ -117,24 +117,27 @@ export const AdminFeedback = ({ onFeedbackStatusChanged }: AdminFeedbackProps) =
 
       if (error) throw error;
 
-      // Fetch user info for each feedback
-      const feedbackWithUserInfo = await Promise.all(
-        (data || []).map(async (feedback) => {
-          const { data: profile } = await supabase
+      // Fetch all submitters in one query instead of one per feedback row
+      const userIds = [...new Set((data || []).map((f) => f.user_id))];
+      const { data: profiles } = userIds.length
+        ? await supabase
             .from("profiles")
-            .select("email, first_name, last_name")
-            .eq("id", feedback.user_id)
-            .single();
+            .select("id, email, first_name, last_name")
+            .in("id", userIds)
+        : { data: [] };
 
-          return {
-            ...feedback,
-            user_email: profile?.email,
-            user_name: profile
-              ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
-              : "Unknown",
-          };
-        })
-      );
+      const profilesById = new Map((profiles || []).map((p) => [p.id, p]));
+
+      const feedbackWithUserInfo = (data || []).map((feedback) => {
+        const profile = profilesById.get(feedback.user_id);
+        return {
+          ...feedback,
+          user_email: profile?.email,
+          user_name: profile
+            ? `${profile.first_name || ""} ${profile.last_name || ""}`.trim()
+            : "Unknown",
+        };
+      });
 
       setFeedbackList(feedbackWithUserInfo);
     } catch (error) {
