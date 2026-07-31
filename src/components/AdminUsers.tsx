@@ -134,20 +134,24 @@ export const AdminUsers = () => {
 
       if (profileError) throw profileError;
 
-      // Fetch badges for each user
-      const usersWithBadges = await Promise.all(
-        (profiles || []).map(async (profile) => {
-          const { data: userBadgeData } = await supabase
-            .from("user_badges")
-            .select("badges(*)")
-            .eq("user_id", profile.id);
+      // Fetch all badge assignments in one query instead of one per user
+      const { data: userBadgeData } = await supabase
+        .from("user_badges")
+        .select("user_id, badges(*)")
+        .in("user_id", (profiles || []).map((p) => p.id));
 
-          return {
-            ...profile,
-            badges: (userBadgeData || []).map((ub) => ub.badges as Badge).filter(Boolean),
-          };
-        })
-      );
+      const badgesByUser = new Map<string, Badge[]>();
+      for (const ub of userBadgeData || []) {
+        if (!ub.badges) continue;
+        const list = badgesByUser.get(ub.user_id) || [];
+        list.push(ub.badges as unknown as Badge);
+        badgesByUser.set(ub.user_id, list);
+      }
+
+      const usersWithBadges = (profiles || []).map((profile) => ({
+        ...profile,
+        badges: badgesByUser.get(profile.id) || [],
+      }));
 
       setUsers(usersWithBadges);
     } catch (error) {

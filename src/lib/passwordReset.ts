@@ -77,7 +77,10 @@ export const verifyRecoverySession = async (): Promise<boolean> => {
 };
 
 /**
- * Validates password strength requirements
+ * Validates password strength requirements.
+ * Must stay in sync with signUpSchema (authSchemas.ts) and the
+ * PasswordRequirements component: 8+ chars, uppercase, lowercase, number.
+ * A password accepted at signup must never be rejected at reset.
  */
 export const validatePasswordStrength = (password: string): { valid: boolean; errors: string[] } => {
   const errors: string[] = [];
@@ -96,10 +99,6 @@ export const validatePasswordStrength = (password: string): { valid: boolean; er
 
   if (!/[0-9]/.test(password)) {
     errors.push("Password must contain at least one number");
-  }
-
-  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
-    errors.push("Password must contain at least one special character (!@#$%^&*...)");
   }
 
   return {

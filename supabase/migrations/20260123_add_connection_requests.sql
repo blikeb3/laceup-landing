@@ -57,29 +57,12 @@ DROP POLICY IF EXISTS connection_requests_insert_policy ON connection_requests;
 DROP POLICY IF EXISTS connection_requests_update_policy ON connection_requests;
 DROP POLICY IF EXISTS connection_requests_delete_policy ON connection_requests;
 
--- Policy: Block all unauthenticated access (baseline security) - SELECT
-CREATE POLICY connection_requests_deny_unauthenticated_select
-  ON connection_requests
-  FOR SELECT
-  USING (auth.uid() IS NOT NULL);
-
--- Policy: Block all unauthenticated access (baseline security) - INSERT
-CREATE POLICY connection_requests_deny_unauthenticated_insert
-  ON connection_requests
-  FOR INSERT
-  WITH CHECK (auth.uid() IS NOT NULL);
-
--- Policy: Block all unauthenticated access (baseline security) - UPDATE
-CREATE POLICY connection_requests_deny_unauthenticated_update
-  ON connection_requests
-  FOR UPDATE
-  USING (auth.uid() IS NOT NULL);
-
--- Policy: Block all unauthenticated access (baseline security) - DELETE
-CREATE POLICY connection_requests_deny_unauthenticated_delete
-  ON connection_requests
-  FOR DELETE
-  USING (auth.uid() IS NOT NULL);
+-- NOTE: This file previously created four "deny_unauthenticated" policies here
+-- with USING (auth.uid() IS NOT NULL). Because permissive policies OR together,
+-- they actually granted every authenticated user full access to all rows.
+-- They were removed (see 20260730_fix_connection_requests_rls.sql). RLS is
+-- default-deny, so unauthenticated access is already blocked by having no
+-- matching policy.
 
 -- Policy: Allow admins full access to all rows - SELECT
 CREATE POLICY connection_requests_admin_select
