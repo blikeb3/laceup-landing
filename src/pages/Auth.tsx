@@ -27,6 +27,7 @@ const Auth = () => {
   const [sport, setSport] = useState("");
   const [userType, setUserType] = useState<"athlete" | "mentor" | "employer">("athlete");
   const [loading, setLoading] = useState(false);
+  const [resendingConfirmation, setResendingConfirmation] = useState(false);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -231,6 +232,36 @@ const Auth = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      toast({
+        title: "Enter your email first",
+        description: "Type your email address above, then tap resend.",
+      });
+      return;
+    }
+
+    setResendingConfirmation(true);
+    try {
+      await supabase.auth.resend({
+        type: "signup",
+        email: trimmedEmail,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      });
+    } catch {
+      // Deliberately swallowed: response must not reveal whether the account exists
+    } finally {
+      setResendingConfirmation(false);
+      // Same message on every outcome to prevent account enumeration
+      toast({
+        title: "Check your inbox",
+        description:
+          "If an account with that email is waiting on confirmation, a fresh confirmation email is on its way.",
+      });
     }
   };
 
@@ -520,9 +551,19 @@ const Auth = () => {
                     required
                   />
                 </div>
-                <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-400 hover:underline">
-                  Forgot your password?
-                </Link>
+                <div className="flex items-center justify-between">
+                  <Link to="/forgot-password" className="text-sm text-blue-500 hover:text-blue-400 hover:underline">
+                    Forgot your password?
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleResendConfirmation}
+                    disabled={resendingConfirmation}
+                    className="text-sm text-blue-500 hover:text-blue-400 hover:underline disabled:opacity-50"
+                  >
+                    {resendingConfirmation ? "Sending..." : "Resend confirmation email"}
+                  </button>
+                </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? "Signing in..." : "Sign In"}
                 </Button>
