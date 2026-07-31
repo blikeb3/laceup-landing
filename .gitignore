@@ -15,6 +15,9 @@ dist-ssr
 # Build output
 build
 
+# Supabase CLI local state
+supabase/.temp
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
