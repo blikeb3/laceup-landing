@@ -31,8 +31,7 @@ supabase/.temp
 
 # Environment variables - never commit secrets
 .env
-.env.local
-.env.*.local
+.env*
 *.env
 !.env.example
 
